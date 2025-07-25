@@ -9,7 +9,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   REGISTRY: gcr.io
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  PROJECT_ID: awesomeapibrasil
   IMAGE_NAME: gateway
 
 jobs:

@@ -25,7 +25,7 @@ We use GitHub to host code, to track issues and feature requests, as well as acc
 
 ```bash
 # Clone your fork
-git clone https://github.com/yourusername/gateway.git
+git clone https://github.com/awesomeapibrasil/gateway.git
 cd gateway
 
 # Set up the development environment

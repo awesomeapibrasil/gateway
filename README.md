@@ -55,12 +55,12 @@ Gateway is a high-performance API Gateway and Ingress Controller built with Rust
 ### Docker
 ```bash
 # Run with default configuration
-docker run -p 8080:8080 -p 9090:9090 gcr.io/your-project/gateway:latest
+docker run -p 8080:8080 -p 9090:9090 gcr.io/awesomeapibrasil/gateway:latest
 
 # Run with custom configuration
 docker run -p 8080:8080 -p 9090:9090 \
   -v $(pwd)/config:/app/config \
-  gcr.io/your-project/gateway:latest
+  gcr.io/awesomeapibrasil/gateway:latest
 ```
 
 ### Kubernetes with Helm
@@ -73,15 +73,6 @@ helm install gateway gateway/gateway
 
 # Install with custom values
 helm install gateway gateway/gateway -f values.yaml
-```
-
-### Binary Installation
-```bash
-# Download the latest release
-curl -L https://github.com/awesomeapibrasil/gateway/releases/latest/download/gateway-linux-x86_64.tar.gz | tar xz
-
-# Run the gateway
-./gateway --config config/gateway.yaml
 ```
 
 ## ⚙️ Configuration
