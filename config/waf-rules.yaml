@@ -1,0 +1,151 @@
+version: "1.0"
+rules:
+  - id: "sql_injection_basic"
+    name: "Basic SQL Injection Protection"
+    description: "Detects common SQL injection patterns in URL and query parameters"
+    severity: "high"
+    enabled: true
+    conditions:
+      - field: "uri"
+        operator: "regex"
+        value: "(?i)(union\\s+select|drop\\s+table|delete\\s+from|insert\\s+into|exec\\s*\\(|sp_)"
+        case_sensitive: false
+    action:
+      action_type: "block"
+      message: "SQL injection attempt detected"
+      score: 100
+
+  - id: "xss_basic"
+    name: "Basic XSS Protection"
+    description: "Detects common Cross-Site Scripting patterns"
+    severity: "high"
+    enabled: true
+    conditions:
+      - field: "uri"
+        operator: "regex"
+        value: "(?i)(<script|</script>|javascript:|vbscript:|onload=|onerror=)"
+        case_sensitive: false
+    action:
+      action_type: "block"
+      message: "XSS attempt detected"
+      score: 100
+
+  - id: "directory_traversal"
+    name: "Directory Traversal Protection"
+    description: "Detects directory traversal attempts"
+    severity: "medium"
+    enabled: true
+    conditions:
+      - field: "uri"
+        operator: "contains"
+        value: "../"
+        case_sensitive: true
+    action:
+      action_type: "block"
+      message: "Directory traversal attempt detected"
+      score: 75
+
+  - id: "command_injection"
+    name: "Command Injection Protection"
+    description: "Detects command injection attempts"
+    severity: "high"
+    enabled: true
+    conditions:
+      - field: "uri"
+        operator: "regex"
+        value: "(?i)(;\\s*(ls|cat|wget|curl|nc|netcat|ping|nslookup)\\b)"
+        case_sensitive: false
+    action:
+      action_type: "block"
+      message: "Command injection attempt detected"
+      score: 100
+
+  - id: "file_inclusion"
+    name: "File Inclusion Protection"
+    description: "Detects local and remote file inclusion attempts"
+    severity: "high"
+    enabled: true
+    conditions:
+      - field: "uri"
+        operator: "regex"
+        value: "(?i)(file://|php://|data://|expect://|zip://)"
+        case_sensitive: false
+    action:
+      action_type: "block"
+      message: "File inclusion attempt detected"
+      score: 90
+
+  - id: "suspicious_user_agent"
+    name: "Suspicious User Agent"
+    description: "Blocks known malicious user agents"
+    severity: "medium"
+    enabled: true
+    conditions:
+      - field: "user_agent"
+        operator: "regex"
+        value: "(?i)(sqlmap|nikto|nmap|masscan|zap|burp|w3af|acunetix|nessus)"
+        case_sensitive: false
+    action:
+      action_type: "block"
+      message: "Suspicious user agent detected"
+      score: 60
+
+  - id: "large_request_body"
+    name: "Large Request Body"
+    description: "Blocks requests with unusually large bodies"
+    severity: "low"
+    enabled: true
+    conditions:
+      - field: "content_length"
+        operator: "greater_than"
+        value: "50000000"  # 50MB
+        case_sensitive: false
+    action:
+      action_type: "block"
+      message: "Request body too large"
+      score: 30
+
+  - id: "suspicious_headers"
+    name: "Suspicious Headers"
+    description: "Detects suspicious or malicious headers"
+    severity: "medium"
+    enabled: true
+    conditions:
+      - field: "header.X-Forwarded-For"
+        operator: "regex"
+        value: "(?i)(\\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\b.*,.*){5,}"
+        case_sensitive: false
+    action:
+      action_type: "log"
+      message: "Suspicious X-Forwarded-For header with multiple IPs"
+      score: 40
+
+  - id: "method_not_allowed"
+    name: "HTTP Method Restriction"
+    description: "Blocks non-standard HTTP methods"
+    severity: "low"
+    enabled: false
+    conditions:
+      - field: "method"
+        operator: "regex"
+        value: "^(TRACE|DEBUG|TRACK|CONNECT)$"
+        case_sensitive: false
+    action:
+      action_type: "block"
+      message: "HTTP method not allowed"
+      score: 20
+
+  - id: "rate_limit_api"
+    name: "API Rate Limiting"
+    description: "Rate limits API endpoints"
+    severity: "low"
+    enabled: true
+    conditions:
+      - field: "uri"
+        operator: "starts_with"
+        value: "/api/"
+        case_sensitive: false
+    action:
+      action_type: "rate_limit"
+      message: "API rate limit exceeded"
+      score: 10

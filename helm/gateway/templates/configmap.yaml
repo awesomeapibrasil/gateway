@@ -1,0 +1,102 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "gateway.fullname" . }}-config
+  labels:
+    {{- include "gateway.labels" . | nindent 4 }}
+data:
+  gateway.yaml: |
+    server:
+      bind_address: {{ .Values.config.server.bind_address | quote }}
+      worker_threads: {{ .Values.config.server.worker_threads }}
+      debug: {{ .Values.config.server.debug }}
+      max_connections: {{ .Values.config.server.max_connections }}
+      connection_timeout: {{ .Values.config.server.connection_timeout | quote }}
+      keep_alive_timeout: {{ .Values.config.server.keep_alive_timeout | quote }}
+      graceful_shutdown_timeout: {{ .Values.config.server.graceful_shutdown_timeout | quote }}
+
+    waf:
+      enabled: {{ .Values.config.waf.enabled }}
+      {{- if .Values.wafRules.enabled }}
+      rules_path: "config/waf-rules.yaml"
+      {{- end }}
+      rate_limiting:
+        enabled: {{ .Values.config.waf.rate_limiting.enabled }}
+        requests_per_minute: {{ .Values.config.waf.rate_limiting.requests_per_minute }}
+        burst_limit: {{ .Values.config.waf.rate_limiting.burst_limit }}
+        window_size: {{ .Values.config.waf.rate_limiting.window_size | quote }}
+        storage_backend: {{ .Values.config.waf.rate_limiting.storage_backend | quote }}
+      ip_whitelist: {{ .Values.config.waf.ip_whitelist | toJson }}
+      ip_blacklist: {{ .Values.config.waf.ip_blacklist | toJson }}
+      blocked_headers: {{ .Values.config.waf.blocked_headers | toJson }}
+      blocked_user_agents: {{ .Values.config.waf.blocked_user_agents | toJson }}
+      max_request_size: {{ .Values.config.waf.max_request_size }}
+      block_malicious_ips: {{ .Values.config.waf.block_malicious_ips }}
+
+    cache:
+      enabled: {{ .Values.config.cache.enabled }}
+      backend: {{ .Values.config.cache.backend | quote }}
+      ttl: {{ .Values.config.cache.ttl | quote }}
+      max_size: {{ .Values.config.cache.max_size }}
+      compression: {{ .Values.config.cache.compression }}
+
+    database:
+      enabled: {{ .Values.config.database.enabled }}
+      {{- if .Values.config.database.enabled }}
+      backend: {{ .Values.config.database.backend | quote }}
+      url: "${DATABASE_URL}"
+      pool_size: {{ .Values.config.database.pool_size }}
+      timeout: {{ .Values.config.database.timeout | quote }}
+      ssl_mode: {{ .Values.config.database.ssl_mode | quote }}
+      {{- end }}
+
+    auth:
+      enabled: {{ .Values.config.auth.enabled }}
+      {{- if .Values.config.auth.enabled }}
+      jwt_secret: "${JWT_SECRET}"
+      jwt_expiry: {{ .Values.config.auth.jwt_expiry | quote }}
+      require_auth: {{ .Values.config.auth.require_auth }}
+      public_paths: {{ .Values.config.auth.public_paths | toJson }}
+      {{- end }}
+
+    monitoring:
+      enabled: {{ .Values.config.monitoring.enabled }}
+      metrics_port: {{ .Values.config.monitoring.metrics_port }}
+      log_level: {{ .Values.config.monitoring.log_level | quote }}
+      health_check_path: {{ .Values.config.monitoring.health_check_path | quote }}
+      prometheus:
+        enabled: {{ .Values.config.monitoring.prometheus.enabled }}
+        endpoint: {{ .Values.config.monitoring.prometheus.endpoint | quote }}
+        namespace: {{ .Values.config.monitoring.prometheus.namespace | quote }}
+
+    upstream:
+      backends: {{ .Values.config.upstream.backends | toJson }}
+      load_balancing:
+        algorithm: {{ .Values.config.upstream.load_balancing.algorithm | quote }}
+        sticky_sessions: {{ .Values.config.upstream.load_balancing.sticky_sessions }}
+      health_check:
+        enabled: {{ .Values.config.upstream.health_check.enabled }}
+        interval: {{ .Values.config.upstream.health_check.interval | quote }}
+        timeout: {{ .Values.config.upstream.health_check.timeout | quote }}
+        retries: {{ .Values.config.upstream.health_check.retries }}
+        path: {{ .Values.config.upstream.health_check.path | quote }}
+        expected_status: {{ .Values.config.upstream.health_check.expected_status }}
+      circuit_breaker:
+        enabled: {{ .Values.config.upstream.circuit_breaker.enabled }}
+        failure_threshold: {{ .Values.config.upstream.circuit_breaker.failure_threshold }}
+        timeout: {{ .Values.config.upstream.circuit_breaker.timeout | quote }}
+        half_open_max_calls: {{ .Values.config.upstream.circuit_breaker.half_open_max_calls }}
+
+{{- if .Values.wafRules.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "gateway.fullname" . }}-waf-rules
+  labels:
+    {{- include "gateway.labels" . | nindent 4 }}
+    app.kubernetes.io/component: waf-rules
+data:
+  waf-rules.yaml: |
+{{ .Values.wafRules.rules | indent 4 }}
+{{- end }}

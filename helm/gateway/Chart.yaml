@@ -1,0 +1,21 @@
+apiVersion: v2
+name: gateway
+description: A Helm chart for the Pingora-based API Gateway
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/awesomeapibrasil/gateway
+sources:
+  - https://github.com/awesomeapibrasil/gateway
+maintainers:
+  - name: Gateway Team
+    email: team@gateway.io
+keywords:
+  - gateway
+  - api
+  - proxy
+  - ingress
+  - waf
+  - rate-limiting
+annotations:
+  category: Infrastructure
