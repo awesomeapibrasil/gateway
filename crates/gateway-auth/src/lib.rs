@@ -25,10 +25,29 @@ pub struct AuthManager {
 }
 
 impl AuthManager {
-    pub async fn new(_config: &AuthConfig, _database: std::sync::Arc<gateway_database::DatabaseManager>) -> Result<Self, String> {
+    pub async fn new(
+        _config: &AuthConfig,
+        _database: std::sync::Arc<gateway_database::DatabaseManager>,
+    ) -> Result<Self, String> {
         Ok(Self {
             config: _config.clone(),
         })
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.config.enabled
+    }
+
+    pub fn get_public_paths(&self) -> &Vec<String> {
+        &self.config.public_paths
+    }
+
+    pub async fn authenticate_request(&self, _uri: &str) -> Result<(), String> {
+        if !self.config.enabled {
+            return Ok(());
+        }
+        // Placeholder implementation
+        Ok(())
     }
 
     pub async fn is_healthy(&self) -> bool {

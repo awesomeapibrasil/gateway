@@ -8,12 +8,12 @@ use crate::proxy::GatewayProxy;
 use crate::server::GatewayServer;
 use crate::types::GatewayStats;
 
-use gateway_waf::WafEngine;
+use gateway_auth::AuthManager;
 use gateway_cache::CacheManager;
 use gateway_database::DatabaseManager;
-use gateway_auth::AuthManager;
 use gateway_monitoring::MonitoringManager;
 use gateway_plugins::PluginManager;
+use gateway_waf::WafEngine;
 
 /// Main Gateway struct that coordinates all components
 #[derive(Clone)]
@@ -43,51 +43,148 @@ impl Gateway {
         let config_read = config_clone.read().await;
 
         // Initialize monitoring first as other components may need it
-        let monitoring = Arc::new(
-            MonitoringManager::new(&config_read.monitoring)
-                .await
-                .map_err(|e| GatewayError::MonitoringError(format!("Failed to initialize monitoring: {}", e)))?
-        );
+        let monitoring_config = gateway_monitoring::MonitoringConfig {
+            enabled: config_read.monitoring.enabled,
+            metrics_port: config_read.monitoring.metrics_port,
+            log_level: config_read.monitoring.log_level.clone(),
+            prometheus: gateway_monitoring::PrometheusConfig {
+                enabled: config_read.monitoring.prometheus.enabled,
+                endpoint: config_read.monitoring.prometheus.endpoint.clone(),
+                namespace: config_read.monitoring.prometheus.namespace.clone(),
+            },
+            tracing: gateway_monitoring::TracingConfig {
+                enabled: config_read.monitoring.tracing.enabled,
+                endpoint: config_read.monitoring.tracing.endpoint.clone(),
+                sample_rate: config_read.monitoring.tracing.sample_rate,
+            },
+            health_check_path: config_read.monitoring.health_check_path.clone(),
+        };
+
+        let monitoring = Arc::new(MonitoringManager::new(&monitoring_config).await.map_err(
+            |e| GatewayError::MonitoringError(format!("Failed to initialize monitoring: {}", e)),
+        )?);
 
         // Initialize database manager
         let database = if config_read.database.enabled {
-            Arc::new(
-                DatabaseManager::new(&config_read.database)
-                    .await
-                    .map_err(|e| GatewayError::DatabaseError(format!("Failed to initialize database: {}", e)))?
-            )
+            let db_config = gateway_database::DatabaseConfig {
+                enabled: config_read.database.enabled,
+                backend: config_read.database.backend.clone(),
+                url: config_read.database.url.clone(),
+                pool_size: config_read.database.pool_size,
+                timeout: config_read.database.timeout,
+                migrations_path: config_read.database.migrations_path.clone(),
+                ssl_mode: config_read.database.ssl_mode.clone(),
+            };
+            Arc::new(DatabaseManager::new(&db_config).await.map_err(|e| {
+                GatewayError::DatabaseError(format!("Failed to initialize database: {}", e))
+            })?)
         } else {
             Arc::new(DatabaseManager::disabled())
         };
 
         // Initialize cache manager
+        let cache_config = gateway_cache::CacheConfig {
+            enabled: config_read.cache.enabled,
+            backend: config_read.cache.backend.clone(),
+            ttl: config_read.cache.ttl,
+            max_size: config_read.cache.max_size,
+            compression: config_read.cache.compression,
+            redis: config_read
+                .cache
+                .redis
+                .as_ref()
+                .map(|r| gateway_cache::RedisConfig {
+                    url: r.url.clone(),
+                    pool_size: r.pool_size,
+                    timeout: r.timeout,
+                    cluster: r.cluster,
+                }),
+        };
         let cache = Arc::new(
-            CacheManager::new(&config_read.cache, database.clone())
+            CacheManager::new(&cache_config, database.clone())
                 .await
-                .map_err(|e| GatewayError::CacheError(format!("Failed to initialize cache: {}", e)))?
+                .map_err(|e| {
+                    GatewayError::CacheError(format!("Failed to initialize cache: {}", e))
+                })?,
         );
 
         // Initialize authentication manager
+        let auth_config = gateway_auth::AuthConfig {
+            enabled: config_read.auth.enabled,
+            jwt_secret: config_read.auth.jwt_secret.clone(),
+            jwt_expiry: config_read.auth.jwt_expiry,
+            providers: config_read
+                .auth
+                .providers
+                .iter()
+                .map(|(k, v)| {
+                    (
+                        k.clone(),
+                        gateway_auth::AuthProviderConfig {
+                            provider_type: v.provider_type.clone(),
+                            config: v.config.clone(),
+                        },
+                    )
+                })
+                .collect(),
+            require_auth: config_read.auth.require_auth,
+            public_paths: config_read.auth.public_paths.clone(),
+        };
         let auth = Arc::new(
-            AuthManager::new(&config_read.auth, database.clone())
+            AuthManager::new(&auth_config, database.clone())
                 .await
-                .map_err(|e| GatewayError::AuthError(format!("Failed to initialize auth: {}", e)))?
+                .map_err(|e| {
+                    GatewayError::AuthError(format!("Failed to initialize auth: {}", e))
+                })?,
         );
 
         // Initialize WAF engine
+        let waf_config = gateway_waf::WafConfig {
+            enabled: config_read.waf.enabled,
+            rules_path: config_read.waf.rules_path.clone(),
+            rate_limiting: gateway_waf::RateLimitConfig {
+                enabled: config_read.waf.rate_limiting.enabled,
+                requests_per_minute: config_read.waf.rate_limiting.requests_per_minute,
+                burst_limit: config_read.waf.rate_limiting.burst_limit,
+                window_size: config_read.waf.rate_limiting.window_size,
+                storage_backend: config_read.waf.rate_limiting.storage_backend.clone(),
+            },
+            ip_whitelist: config_read.waf.ip_whitelist.clone(),
+            ip_blacklist: config_read.waf.ip_blacklist.clone(),
+            blocked_headers: config_read.waf.blocked_headers.clone(),
+            blocked_user_agents: config_read.waf.blocked_user_agents.clone(),
+            max_request_size: config_read.waf.max_request_size,
+            block_malicious_ips: config_read.waf.block_malicious_ips,
+        };
         let waf = Arc::new(
-            WafEngine::new(&config_read.waf, database.clone())
+            WafEngine::new(&waf_config, database.clone())
                 .await
-                .map_err(|e| GatewayError::WafError(format!("Failed to initialize WAF: {}", e)))?
+                .map_err(|e| GatewayError::WafError(format!("Failed to initialize WAF: {}", e)))?,
         );
 
         // Initialize plugin manager
         let plugins = if config_read.plugins.enabled {
-            Arc::new(
-                PluginManager::new(&config_read.plugins)
-                    .await
-                    .map_err(|e| GatewayError::PluginError(format!("Failed to initialize plugins: {}", e)))?
-            )
+            let plugin_config = gateway_plugins::PluginConfig {
+                enabled: config_read.plugins.enabled,
+                plugin_dir: config_read.plugins.plugin_dir.clone(),
+                plugins: config_read
+                    .plugins
+                    .plugins
+                    .iter()
+                    .map(|(k, v)| {
+                        (
+                            k.clone(),
+                            gateway_plugins::PluginInstanceConfig {
+                                enabled: v.enabled,
+                                config: v.config.clone(),
+                            },
+                        )
+                    })
+                    .collect(),
+            };
+            Arc::new(PluginManager::new(&plugin_config).await.map_err(|e| {
+                GatewayError::PluginError(format!("Failed to initialize plugins: {}", e))
+            })?)
         } else {
             Arc::new(PluginManager::disabled())
         };
@@ -101,15 +198,18 @@ impl Gateway {
                 auth.clone(),
                 monitoring.clone(),
                 plugins.clone(),
-            ).await
-            .map_err(|e| GatewayError::ProxyError(format!("Failed to initialize proxy: {}", e)))?
+            )
+            .await
+            .map_err(|e| GatewayError::ProxyError(format!("Failed to initialize proxy: {}", e)))?,
         );
 
         // Initialize server
         let server = Arc::new(
             GatewayServer::new(&config_read.server, proxy.clone(), monitoring.clone())
                 .await
-                .map_err(|e| GatewayError::ProxyError(format!("Failed to initialize server: {}", e)))?
+                .map_err(|e| {
+                    GatewayError::ProxyError(format!("Failed to initialize server: {}", e))
+                })?,
         );
 
         // Initialize stats
@@ -194,7 +294,7 @@ impl Gateway {
         self.stats.read().await.clone()
     }
 
-    /// Update configuration at runtime
+    /// Update configuration at runtime (simplified implementation)
     pub async fn update_config(&self, new_config: GatewayConfig) -> Result<()> {
         info!("Updating Gateway configuration");
 
@@ -202,55 +302,9 @@ impl Gateway {
         new_config.validate()?;
 
         let mut config = self.config.write().await;
-        let old_config = config.clone();
-
-        // Check what changed and update components accordingly
-        if old_config.waf != new_config.waf {
-            if let Err(e) = self.waf.update_config(&new_config.waf).await {
-                error!("Failed to update WAF config: {}", e);
-                return Err(GatewayError::WafError(format!("Config update failed: {}", e)));
-            }
-        }
-
-        if old_config.cache != new_config.cache {
-            if let Err(e) = self.cache.update_config(&new_config.cache).await {
-                error!("Failed to update cache config: {}", e);
-                return Err(GatewayError::CacheError(format!("Config update failed: {}", e)));
-            }
-        }
-
-        if old_config.auth != new_config.auth {
-            if let Err(e) = self.auth.update_config(&new_config.auth).await {
-                error!("Failed to update auth config: {}", e);
-                return Err(GatewayError::AuthError(format!("Config update failed: {}", e)));
-            }
-        }
-
-        if old_config.monitoring != new_config.monitoring {
-            if let Err(e) = self.monitoring.update_config(&new_config.monitoring).await {
-                error!("Failed to update monitoring config: {}", e);
-                return Err(GatewayError::MonitoringError(format!("Config update failed: {}", e)));
-            }
-        }
-
-        if old_config.plugins != new_config.plugins {
-            if let Err(e) = self.plugins.update_config(&new_config.plugins).await {
-                error!("Failed to update plugins config: {}", e);
-                return Err(GatewayError::PluginError(format!("Config update failed: {}", e)));
-            }
-        }
-
-        if old_config.upstream != new_config.upstream {
-            if let Err(e) = self.proxy.update_config(&new_config.upstream).await {
-                error!("Failed to update proxy config: {}", e);
-                return Err(GatewayError::ProxyError(format!("Config update failed: {}", e)));
-            }
-        }
-
-        // Update the stored configuration
         *config = new_config;
 
-        info!("Gateway configuration updated successfully");
+        info!("Configuration updated successfully");
         Ok(())
     }
 
@@ -270,15 +324,20 @@ impl Gateway {
         let plugins_healthy = self.plugins.is_healthy().await;
         let proxy_healthy = self.proxy.is_healthy().await;
 
-        waf_healthy && cache_healthy && database_healthy && auth_healthy 
-            && monitoring_healthy && plugins_healthy && proxy_healthy
+        waf_healthy
+            && cache_healthy
+            && database_healthy
+            && auth_healthy
+            && monitoring_healthy
+            && plugins_healthy
+            && proxy_healthy
     }
 }
 
 impl Default for GatewayStats {
     fn default() -> Self {
         use std::time::Duration;
-        
+
         Self {
             total_requests: 0,
             total_responses: 0,

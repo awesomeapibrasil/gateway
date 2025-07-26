@@ -1,7 +1,7 @@
+use crate::{RequestContext, Result, WafError, WafResult};
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use regex::Regex;
-use crate::{RequestContext, WafResult, WafError, Result};
 
 /// WAF rule set containing multiple rules
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,8 +26,8 @@ pub struct WafRule {
 /// Rule condition for matching requests
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RuleCondition {
-    pub field: String,        // "uri", "header", "method", "query", "body", "ip"
-    pub operator: String,     // "equals", "contains", "regex", "starts_with", "ends_with"
+    pub field: String,    // "uri", "header", "method", "query", "body", "ip"
+    pub operator: String, // "equals", "contains", "regex", "starts_with", "ends_with"
     pub value: String,
     pub case_sensitive: bool,
 }
@@ -35,7 +35,7 @@ pub struct RuleCondition {
 /// Action to take when rule matches
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RuleAction {
-    pub action_type: String,  // "block", "log", "rate_limit"
+    pub action_type: String, // "block", "log", "rate_limit"
     pub message: String,
     pub score: Option<u32>,
     pub metadata: HashMap<String, String>,
@@ -44,28 +44,31 @@ pub struct RuleAction {
 impl WafRuleSet {
     /// Load rules from a YAML file
     pub async fn load_from_file(path: &str) -> Result<Self> {
-        let content = tokio::fs::read_to_string(path).await
-            .map_err(|e| WafError::RuleParseError(format!("Failed to read file {}: {}", path, e)))?;
-        
+        let content = tokio::fs::read_to_string(path).await.map_err(|e| {
+            WafError::RuleParseError(format!("Failed to read file {}: {}", path, e))
+        })?;
+
         let ruleset: WafRuleSet = serde_yaml::from_str(&content)
             .map_err(|e| WafError::RuleParseError(format!("Failed to parse YAML: {}", e)))?;
-        
+
         // Validate rules
         for rule in &ruleset.rules {
             rule.validate()?;
         }
-        
+
         Ok(ruleset)
     }
 
     /// Save rules to a YAML file
     pub async fn save_to_file(&self, path: &str) -> Result<()> {
-        let content = serde_yaml::to_string(self)
-            .map_err(|e| WafError::SerializationError(format!("Failed to serialize rules: {}", e)))?;
-        
-        tokio::fs::write(path, content).await
+        let content = serde_yaml::to_string(self).map_err(|e| {
+            WafError::SerializationError(format!("Failed to serialize rules: {}", e))
+        })?;
+
+        tokio::fs::write(path, content)
+            .await
             .map_err(|e| WafError::IoError(e))?;
-        
+
         Ok(())
     }
 
@@ -118,11 +121,16 @@ impl WafRule {
     /// Validate the rule configuration
     pub fn validate(&self) -> Result<()> {
         if self.id.is_empty() {
-            return Err(WafError::RuleParseError("Rule ID cannot be empty".to_string()));
+            return Err(WafError::RuleParseError(
+                "Rule ID cannot be empty".to_string(),
+            ));
         }
 
         if self.conditions.is_empty() {
-            return Err(WafError::RuleParseError(format!("Rule {} must have at least one condition", self.id)));
+            return Err(WafError::RuleParseError(format!(
+                "Rule {} must have at least one condition",
+                self.id
+            )));
         }
 
         for condition in &self.conditions {
@@ -139,7 +147,7 @@ impl RuleCondition {
     /// Check if the condition matches the request
     pub fn matches(&self, request: &RequestContext) -> Result<bool> {
         let target_value = self.get_field_value(request)?;
-        
+
         match self.operator.as_str() {
             "equals" => Ok(self.compare_strings(&target_value, &self.value)),
             "contains" => Ok(self.string_contains(&target_value, &self.value)),
@@ -148,7 +156,10 @@ impl RuleCondition {
             "regex" => self.regex_matches(&target_value, &self.value),
             "greater_than" => self.numeric_compare(&target_value, &self.value, |a, b| a > b),
             "less_than" => self.numeric_compare(&target_value, &self.value, |a, b| a < b),
-            _ => Err(WafError::RuleParseError(format!("Unknown operator: {}", self.operator))),
+            _ => Err(WafError::RuleParseError(format!(
+                "Unknown operator: {}",
+                self.operator
+            ))),
         }
     }
 
@@ -163,13 +174,24 @@ impl RuleCondition {
             "content_length" => Ok(request.content_length.unwrap_or(0).to_string()),
             field if field.starts_with("header.") => {
                 let header_name = &field[7..]; // Remove "header." prefix
-                Ok(request.headers.get(header_name).cloned().unwrap_or_default())
+                Ok(request
+                    .headers
+                    .get(header_name)
+                    .cloned()
+                    .unwrap_or_default())
             }
             field if field.starts_with("query.") => {
                 let param_name = &field[6..]; // Remove "query." prefix
-                Ok(request.query_params.get(param_name).cloned().unwrap_or_default())
+                Ok(request
+                    .query_params
+                    .get(param_name)
+                    .cloned()
+                    .unwrap_or_default())
             }
-            _ => Err(WafError::RuleParseError(format!("Unknown field: {}", self.field))),
+            _ => Err(WafError::RuleParseError(format!(
+                "Unknown field: {}",
+                self.field
+            ))),
         }
     }
 
@@ -213,7 +235,7 @@ impl RuleCondition {
     fn regex_matches(&self, string: &str, pattern: &str) -> Result<bool> {
         let regex = Regex::new(pattern)
             .map_err(|e| WafError::PatternError(format!("Invalid regex pattern: {}", e)))?;
-        
+
         Ok(regex.is_match(string))
     }
 
@@ -222,28 +244,35 @@ impl RuleCondition {
     where
         F: Fn(f64, f64) -> bool,
     {
-        let num_a: f64 = a.parse()
+        let num_a: f64 = a
+            .parse()
             .map_err(|_| WafError::RuleParseError(format!("Cannot parse '{}' as number", a)))?;
-        let num_b: f64 = b.parse()
+        let num_b: f64 = b
+            .parse()
             .map_err(|_| WafError::RuleParseError(format!("Cannot parse '{}' as number", b)))?;
-        
+
         Ok(compare_fn(num_a, num_b))
     }
 
     /// Validate the condition
     pub fn validate(&self) -> Result<()> {
         if self.field.is_empty() {
-            return Err(WafError::RuleParseError("Condition field cannot be empty".to_string()));
+            return Err(WafError::RuleParseError(
+                "Condition field cannot be empty".to_string(),
+            ));
         }
 
         if self.operator.is_empty() {
-            return Err(WafError::RuleParseError("Condition operator cannot be empty".to_string()));
+            return Err(WafError::RuleParseError(
+                "Condition operator cannot be empty".to_string(),
+            ));
         }
 
         // Validate regex patterns
         if self.operator == "regex" {
-            Regex::new(&self.value)
-                .map_err(|e| WafError::PatternError(format!("Invalid regex pattern '{}': {}", self.value, e)))?;
+            Regex::new(&self.value).map_err(|e| {
+                WafError::PatternError(format!("Invalid regex pattern '{}': {}", self.value, e))
+            })?;
         }
 
         Ok(())
@@ -255,7 +284,10 @@ impl RuleAction {
     pub fn validate(&self) -> Result<()> {
         match self.action_type.as_str() {
             "block" | "log" | "rate_limit" => Ok(()),
-            _ => Err(WafError::RuleParseError(format!("Invalid action type: {}", self.action_type))),
+            _ => Err(WafError::RuleParseError(format!(
+                "Invalid action type: {}",
+                self.action_type
+            ))),
         }
     }
 }
@@ -272,14 +304,13 @@ impl Default for WafRuleSet {
                     description: "Detects common SQL injection patterns".to_string(),
                     severity: "high".to_string(),
                     enabled: true,
-                    conditions: vec![
-                        RuleCondition {
-                            field: "uri".to_string(),
-                            operator: "regex".to_string(),
-                            value: r"(?i)(union\s+select|drop\s+table|delete\s+from|insert\s+into)".to_string(),
-                            case_sensitive: false,
-                        }
-                    ],
+                    conditions: vec![RuleCondition {
+                        field: "uri".to_string(),
+                        operator: "regex".to_string(),
+                        value: r"(?i)(union\s+select|drop\s+table|delete\s+from|insert\s+into)"
+                            .to_string(),
+                        case_sensitive: false,
+                    }],
                     action: RuleAction {
                         action_type: "block".to_string(),
                         message: "SQL injection attempt detected".to_string(),
@@ -295,14 +326,12 @@ impl Default for WafRuleSet {
                     description: "Detects common XSS patterns".to_string(),
                     severity: "high".to_string(),
                     enabled: true,
-                    conditions: vec![
-                        RuleCondition {
-                            field: "uri".to_string(),
-                            operator: "regex".to_string(),
-                            value: r"(?i)(<script|</script>|javascript:|vbscript:)".to_string(),
-                            case_sensitive: false,
-                        }
-                    ],
+                    conditions: vec![RuleCondition {
+                        field: "uri".to_string(),
+                        operator: "regex".to_string(),
+                        value: r"(?i)(<script|</script>|javascript:|vbscript:)".to_string(),
+                        case_sensitive: false,
+                    }],
                     action: RuleAction {
                         action_type: "block".to_string(),
                         message: "XSS attempt detected".to_string(),
@@ -318,14 +347,12 @@ impl Default for WafRuleSet {
                     description: "Detects directory traversal attempts".to_string(),
                     severity: "medium".to_string(),
                     enabled: true,
-                    conditions: vec![
-                        RuleCondition {
-                            field: "uri".to_string(),
-                            operator: "contains".to_string(),
-                            value: "../".to_string(),
-                            case_sensitive: true,
-                        }
-                    ],
+                    conditions: vec![RuleCondition {
+                        field: "uri".to_string(),
+                        operator: "contains".to_string(),
+                        value: "../".to_string(),
+                        case_sensitive: true,
+                    }],
                     action: RuleAction {
                         action_type: "block".to_string(),
                         message: "Directory traversal attempt detected".to_string(),

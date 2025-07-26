@@ -1,10 +1,10 @@
+use dashmap::DashMap;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::RwLock;
-use dashmap::DashMap;
 
-use crate::{RequestContext, RateLimitConfig, WafError, Result};
+use crate::{RateLimitConfig, RequestContext, Result};
 use gateway_database::DatabaseManager;
 
 /// Rate limiting key for identifying clients
@@ -21,12 +21,14 @@ impl RateLimitKey {
     pub fn from_request(request: &RequestContext, key_type: &str) -> Self {
         match key_type {
             "ip" => RateLimitKey::Ip(request.client_ip),
-            "user_agent" => RateLimitKey::UserAgent(
-                request.user_agent.clone().unwrap_or_default()
-            ),
+            "user_agent" => RateLimitKey::UserAgent(request.user_agent.clone().unwrap_or_default()),
             key if key.starts_with("header:") => {
                 let header_name = &key[7..];
-                let header_value = request.headers.get(header_name).cloned().unwrap_or_default();
+                let header_value = request
+                    .headers
+                    .get(header_name)
+                    .cloned()
+                    .unwrap_or_default();
                 RateLimitKey::Header(header_name.to_string(), header_value)
             }
             _ => RateLimitKey::Ip(request.client_ip), // Default to IP
@@ -53,6 +55,7 @@ struct RateLimitEntry {
 }
 
 /// Rate limiter implementation
+#[allow(dead_code)]
 pub struct RateLimiter {
     config: Arc<RwLock<RateLimitConfig>>,
     memory_store: Arc<DashMap<String, RateLimitEntry>>,
@@ -72,28 +75,31 @@ impl RateLimiter {
     /// Check if a request should be rate limited
     pub async fn check_request(&self, request: &RequestContext) -> Result<bool> {
         let config = self.config.read().await;
-        
+
         if !config.enabled {
             return Ok(true); // Allow if rate limiting is disabled
         }
 
         let key = RateLimitKey::from_request(request, "ip");
         let key_str = key.to_string();
-        
+
         let now = SystemTime::now();
-        
+
         // Get or create entry
-        let mut entry = self.memory_store.entry(key_str.clone())
-            .or_insert_with(|| RateLimitEntry {
-                requests: 0,
-                window_start: now,
-                last_request: now,
-            });
+        let mut entry =
+            self.memory_store
+                .entry(key_str.clone())
+                .or_insert_with(|| RateLimitEntry {
+                    requests: 0,
+                    window_start: now,
+                    last_request: now,
+                });
 
         // Check if we need to reset the window
-        let window_elapsed = now.duration_since(entry.window_start)
+        let window_elapsed = now
+            .duration_since(entry.window_start)
             .unwrap_or(Duration::ZERO);
-        
+
         if window_elapsed >= config.window_size {
             // Reset the window
             entry.requests = 0;
@@ -103,9 +109,10 @@ impl RateLimiter {
         // Check rate limits
         if entry.requests >= config.requests_per_minute {
             // Check burst limit
-            let time_since_last = now.duration_since(entry.last_request)
+            let time_since_last = now
+                .duration_since(entry.last_request)
                 .unwrap_or(Duration::ZERO);
-            
+
             if entry.requests >= config.burst_limit || time_since_last < Duration::from_secs(1) {
                 return Ok(false); // Rate limited
             }
@@ -161,27 +168,31 @@ impl RateLimiter {
     /// Get rate limit statistics
     pub async fn get_stats(&self) -> HashMap<String, u32> {
         let mut stats = HashMap::new();
-        
+
         let total_entries = self.memory_store.len();
         stats.insert("total_tracked_keys".to_string(), total_entries as u32);
-        
-        let active_entries = self.memory_store.iter()
+
+        let active_entries = self
+            .memory_store
+            .iter()
             .filter(|entry| {
-                SystemTime::now().duration_since(entry.last_request)
+                SystemTime::now()
+                    .duration_since(entry.last_request)
                     .map(|elapsed| elapsed < Duration::from_secs(60))
                     .unwrap_or(false)
             })
             .count();
-        
+
         stats.insert("active_keys".to_string(), active_entries as u32);
-        
+
         stats
     }
 
     /// Get rate limit info for a specific key
     pub async fn get_key_info(&self, key: &RateLimitKey) -> Option<(u32, SystemTime)> {
         let key_str = key.to_string();
-        self.memory_store.get(&key_str)
+        self.memory_store
+            .get(&key_str)
             .map(|entry| (entry.requests, entry.window_start))
     }
 
@@ -192,7 +203,12 @@ impl RateLimiter {
     }
 
     /// Add a custom rate limit rule
-    pub async fn add_custom_limit(&self, _key: RateLimitKey, _limit: u32, _window: Duration) -> Result<()> {
+    pub async fn add_custom_limit(
+        &self,
+        _key: RateLimitKey,
+        _limit: u32,
+        _window: Duration,
+    ) -> Result<()> {
         // Placeholder for custom rate limit rules
         // In a real implementation, this would allow setting different limits
         // for different keys or patterns

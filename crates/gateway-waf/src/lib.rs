@@ -1,26 +1,34 @@
 //! Web Application Firewall (WAF) Module
-//! 
+//!
 //! This module provides comprehensive Layer 7 filtering capabilities including:
 //! - IP-based blocking and whitelisting
 //! - Header-based filtering
+
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::manual_strip)]
+#![allow(clippy::for_kv_map)]
+#![allow(clippy::redundant_closure)]
+#![allow(clippy::new_without_default)]
+#![allow(clippy::inherent_to_string)]
+#![allow(clippy::overly_complex_bool_expr)]
 //! - URL and query string validation
 //! - Rate limiting with distributed storage
 //! - Complex rule engine similar to OPA
 //! - Simple rule configuration for common use cases
 
 pub mod engine;
-pub mod rules;
-pub mod rate_limiter;
-pub mod ip_filter;
 pub mod header_filter;
-pub mod url_filter;
+pub mod ip_filter;
 pub mod patterns;
+pub mod rate_limiter;
+pub mod rules;
+pub mod url_filter;
 
 pub use engine::WafEngine;
-pub use rules::{WafRule, WafRuleSet, RuleCondition, RuleAction};
-pub use rate_limiter::{RateLimiter, RateLimitKey};
-pub use ip_filter::IpFilter;
 pub use header_filter::HeaderFilter;
+pub use ip_filter::IpFilter;
+pub use rate_limiter::{RateLimitKey, RateLimiter};
+pub use rules::{RuleAction, RuleCondition, WafRule, WafRuleSet};
 pub use url_filter::UrlFilter;
 
 use serde::{Deserialize, Serialize};

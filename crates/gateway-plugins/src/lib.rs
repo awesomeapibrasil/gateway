@@ -16,6 +16,7 @@ pub struct PluginInstanceConfig {
     pub config: HashMap<String, serde_json::Value>,
 }
 
+#[allow(dead_code)]
 pub struct PluginManager {
     config: PluginConfig,
 }

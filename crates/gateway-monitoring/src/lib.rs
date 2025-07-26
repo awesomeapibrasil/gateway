@@ -27,14 +27,18 @@ pub struct TracingConfig {
 }
 
 pub struct MonitoringManager {
-    config: MonitoringConfig,
+    metrics_port: u16,
 }
 
 impl MonitoringManager {
-    pub async fn new(_config: &MonitoringConfig) -> Result<Self, String> {
+    pub async fn new(config: &MonitoringConfig) -> Result<Self, String> {
         Ok(Self {
-            config: _config.clone(),
+            metrics_port: config.metrics_port,
         })
+    }
+
+    pub fn get_metrics_port(&self) -> u16 {
+        self.metrics_port
     }
 
     pub async fn start(&self) -> Result<(), String> {

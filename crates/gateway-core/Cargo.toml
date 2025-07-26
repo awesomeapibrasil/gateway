@@ -19,6 +19,7 @@ hyper = { workspace = true }
 http = { workspace = true }
 tower = { workspace = true }
 tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 config = { workspace = true }

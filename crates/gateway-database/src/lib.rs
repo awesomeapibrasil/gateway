@@ -14,6 +14,7 @@ pub struct DatabaseConfig {
     pub ssl_mode: String,
 }
 
+#[allow(dead_code)]
 pub struct DatabaseManager {
     config: Option<DatabaseConfig>,
 }

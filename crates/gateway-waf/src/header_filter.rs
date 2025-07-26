@@ -1,8 +1,8 @@
 //! Header-based filtering for WAF
 
-use std::collections::HashMap;
+use crate::{Result, WafError};
 use regex::Regex;
-use crate::{RequestContext, WafError, Result};
+use std::collections::HashMap;
 
 /// Header filter for blocking requests based on headers
 pub struct HeaderFilter {
@@ -14,7 +14,7 @@ impl HeaderFilter {
     /// Create a new header filter
     pub fn new(blocked_headers: &[String]) -> Result<Self> {
         let mut blocked_patterns = Vec::new();
-        
+
         // Create regex patterns for header values
         for header in blocked_headers {
             if header.starts_with("regex:") {

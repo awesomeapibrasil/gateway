@@ -3,15 +3,16 @@ use tracing::{debug, error, info, warn};
 
 use crate::config::UpstreamConfig;
 use crate::error::{GatewayError, Result};
-use crate::types::{Backend, LoadBalanceAlgorithm, RequestMetadata, ResponseMetadata};
+use crate::types::{Backend, RequestMetadata, ResponseMetadata};
 
-use gateway_waf::WafEngine;
-use gateway_cache::CacheManager;
 use gateway_auth::AuthManager;
+use gateway_cache::CacheManager;
 use gateway_monitoring::MonitoringManager;
 use gateway_plugins::PluginManager;
+use gateway_waf::{RequestContext, WafEngine};
 
 /// Gateway proxy that handles request routing and processing
+#[allow(dead_code)]
 pub struct GatewayProxy {
     config: UpstreamConfig,
     waf: Arc<WafEngine>,
@@ -32,11 +33,16 @@ impl GatewayProxy {
         monitoring: Arc<MonitoringManager>,
         plugins: Arc<PluginManager>,
     ) -> Result<Self> {
-        info!("Initializing Gateway proxy with {} backends", config.backends.len());
+        info!(
+            "Initializing Gateway proxy with {} backends",
+            config.backends.len()
+        );
 
         // Convert backend configs to runtime backends
-        let backends = config.backends.iter().map(|backend_config| {
-            Backend {
+        let backends = config
+            .backends
+            .iter()
+            .map(|backend_config| Backend {
                 name: backend_config.name.clone(),
                 address: backend_config.address.clone(),
                 weight: backend_config.weight,
@@ -46,8 +52,8 @@ impl GatewayProxy {
                 total_requests: 0,
                 failed_requests: 0,
                 average_response_time: backend_config.timeout,
-            }
-        }).collect();
+            })
+            .collect();
 
         Ok(Self {
             config: config.clone(),
@@ -64,12 +70,28 @@ impl GatewayProxy {
     pub async fn process_request(&self, request: RequestMetadata) -> Result<ResponseMetadata> {
         debug!("Processing request: {} {}", request.method, request.uri);
 
+        // Convert RequestMetadata to RequestContext for WAF
+        let waf_request = RequestContext {
+            method: request.method.to_string(),
+            uri: request.uri.clone(),
+            headers: request.headers.clone(),
+            query_params: request.query_params.clone(),
+            client_ip: request.client_ip,
+            user_agent: request.user_agent.clone(),
+            content_type: request.content_type.clone(),
+            content_length: request.content_length,
+            body: None, // Body not available in this context
+        };
+
         // 1. WAF Evaluation
-        let waf_result = match self.waf.evaluate_request(&request).await {
+        let waf_result = match self.waf.evaluate_request(&waf_request).await {
             Ok(result) => result,
             Err(e) => {
                 error!("WAF evaluation failed: {}", e);
-                return Err(GatewayError::WafError(format!("WAF evaluation failed: {}", e)));
+                return Err(GatewayError::WafError(format!(
+                    "WAF evaluation failed: {}",
+                    e
+                )));
             }
         };
 
@@ -104,8 +126,8 @@ impl GatewayProxy {
         }
 
         // 2. Authentication (if enabled)
-        if self.auth.config.enabled && !self.is_public_path(&request.uri) {
-            match self.auth.authenticate_request(&request).await {
+        if self.auth.is_enabled() && !self.is_public_path(&request.uri) {
+            match self.auth.authenticate_request(&request.uri).await {
                 Ok(_auth_context) => {
                     debug!("Request authenticated successfully");
                 }
@@ -125,13 +147,13 @@ impl GatewayProxy {
         }
 
         // 3. Cache Lookup
-        if self.cache.config.enabled {
-            if let Ok(Some(cached_response)) = self.cache.get(&request).await {
+        if self.cache.is_enabled() {
+            if let Ok(Some(_cached_data)) = self.cache.get(&request.uri).await {
                 debug!("Cache hit for request: {}", request.uri);
                 return Ok(ResponseMetadata {
                     status_code: 200,
                     headers: std::collections::HashMap::new(),
-                    content_length: cached_response.content_length,
+                    content_length: Some(1024), // placeholder
                     processing_time: std::time::Duration::from_millis(1),
                     backend_time: None,
                     cache_hit: true,
@@ -178,8 +200,8 @@ impl GatewayProxy {
         let backend_time = backend_start.elapsed();
 
         // 6. Cache Response (if cacheable)
-        if self.cache.config.enabled && response.status_code == 200 {
-            if let Err(e) = self.cache.set(&request, &response).await {
+        if self.cache.is_enabled() && response.status_code == 200 {
+            if let Err(e) = self.cache.set(&request.uri, &[]).await {
                 warn!("Failed to cache response: {}", e);
             }
         }
@@ -197,9 +219,7 @@ impl GatewayProxy {
 
     /// Select a backend using the configured load balancing algorithm
     async fn select_backend(&self) -> Option<Backend> {
-        let healthy_backends: Vec<&Backend> = self.backends.iter()
-            .filter(|b| b.healthy)
-            .collect();
+        let healthy_backends: Vec<&Backend> = self.backends.iter().filter(|b| b.healthy).collect();
 
         if healthy_backends.is_empty() {
             return None;
@@ -213,7 +233,8 @@ impl GatewayProxy {
             }
             "least_connections" => {
                 // Select backend with least active connections
-                healthy_backends.iter()
+                healthy_backends
+                    .iter()
                     .min_by_key(|b| b.active_connections)
                     .map(|&b| b.clone())
             }
@@ -230,12 +251,16 @@ impl GatewayProxy {
     }
 
     /// Forward request to the selected backend
-    async fn forward_to_backend(&self, _request: &RequestMetadata, backend: &Backend) -> Result<ResponseMetadata> {
+    async fn forward_to_backend(
+        &self,
+        _request: &RequestMetadata,
+        backend: &Backend,
+    ) -> Result<ResponseMetadata> {
         debug!("Forwarding request to backend: {}", backend.name);
 
         // In a real implementation, this would use Pingora's proxy capabilities
         // to forward the request to the backend and return the response
-        
+
         // For now, simulate a successful response
         Ok(ResponseMetadata {
             status_code: 200,
@@ -250,9 +275,10 @@ impl GatewayProxy {
 
     /// Check if a path is in the public paths list
     fn is_public_path(&self, path: &str) -> bool {
-        self.auth.config.public_paths.iter().any(|public_path| {
-            path.starts_with(public_path)
-        })
+        self.auth
+            .get_public_paths()
+            .iter()
+            .any(|public_path| path.starts_with(public_path))
     }
 
     /// Update proxy configuration
@@ -268,46 +294,4 @@ impl GatewayProxy {
         // Check if at least one backend is healthy
         self.backends.iter().any(|b| b.healthy)
     }
-}
-
-// Extension traits for component integration
-impl WafEngine {
-    pub async fn evaluate_request(&self, _request: &RequestMetadata) -> Result<gateway_waf::WafResult, String> {
-        // Placeholder implementation
-        Ok(gateway_waf::WafResult::Allow)
-    }
-}
-
-impl AuthManager {
-    pub async fn authenticate_request(&self, _request: &RequestMetadata) -> Result<(), String> {
-        if !self.config.enabled {
-            return Ok(());
-        }
-        // Placeholder implementation
-        Ok(())
-    }
-}
-
-impl CacheManager {
-    pub async fn get(&self, _request: &RequestMetadata) -> std::result::Result<Option<CachedResponse>, String> {
-        if !self.config.enabled {
-            return Ok(None);
-        }
-        // Placeholder implementation
-        Ok(None)
-    }
-
-    pub async fn set(&self, _request: &RequestMetadata, _response: &ResponseMetadata) -> std::result::Result<(), String> {
-        if !self.config.enabled {
-            return Ok(());
-        }
-        // Placeholder implementation
-        Ok(())
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct CachedResponse {
-    pub content_length: Option<u64>,
-    pub data: Vec<u8>,
 }

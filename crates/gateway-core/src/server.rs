@@ -1,13 +1,14 @@
 use std::sync::Arc;
 use tokio::signal;
-use tracing::{error, info};
+use tracing::info;
 
 use crate::config::ServerConfig;
-use crate::error::{GatewayError, Result};
+use crate::error::Result;
 use crate::proxy::GatewayProxy;
 use gateway_monitoring::MonitoringManager;
 
 /// Gateway server that manages the Pingora-based proxy
+#[allow(dead_code)]
 pub struct GatewayServer {
     config: ServerConfig,
     proxy: Arc<GatewayProxy>,
@@ -37,7 +38,7 @@ impl GatewayServer {
         // For now, we'll simulate running the server
         // In a real implementation, this would integrate with Pingora's server
         // and set up the HTTP/HTTPS listeners
-        
+
         // Start the monitoring metrics server
         self.start_metrics_server().await?;
 
@@ -50,11 +51,14 @@ impl GatewayServer {
 
     /// Start the metrics server for monitoring
     async fn start_metrics_server(&self) -> Result<()> {
-        info!("Starting metrics server on port {}", self.monitoring.config.metrics_port);
-        
+        info!(
+            "Starting metrics server on port {}",
+            self.monitoring.get_metrics_port()
+        );
+
         // In a real implementation, this would start an HTTP server
         // for Prometheus metrics and health checks
-        
+
         Ok(())
     }
 

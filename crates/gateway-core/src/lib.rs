@@ -1,8 +1,12 @@
 //! Gateway Core Library
-//! 
+//!
 //! This is the main library for the Pingora-based API Gateway, providing
 //! core functionality including proxy services, load balancing, and integration
 //! with WAF, caching, database, and monitoring components.
+
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::derivable_impls)]
+#![allow(clippy::match_ref_pats)]
 
 pub mod config;
 pub mod error;
@@ -28,12 +32,12 @@ pub static GATEWAY_INSTANCE: Lazy<Arc<tokio::sync::RwLock<Option<Gateway>>>> =
 /// Initialize the gateway with the given configuration
 pub async fn init_gateway(config: GatewayConfig) -> Result<()> {
     info!("Initializing gateway core");
-    
+
     let gateway = Gateway::new(config).await?;
-    
+
     let mut instance = GATEWAY_INSTANCE.write().await;
     *instance = Some(gateway);
-    
+
     info!("Gateway core initialized successfully");
     Ok(())
 }

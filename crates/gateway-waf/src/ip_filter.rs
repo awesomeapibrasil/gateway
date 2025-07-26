@@ -2,9 +2,8 @@ use std::collections::HashSet;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use regex::Regex;
 
-use crate::{WafError, Result};
+use crate::{Result, WafError};
 
 /// IP filter for managing IP whitelists and blacklists
 pub struct IpFilter {
@@ -122,33 +121,46 @@ impl IpFilter {
             // CIDR range
             let parts: Vec<&str> = ip_str.split('/').collect();
             if parts.len() != 2 {
-                return Err(WafError::ConfigError(format!("Invalid CIDR format: {}", ip_str)));
+                return Err(WafError::ConfigError(format!(
+                    "Invalid CIDR format: {}",
+                    ip_str
+                )));
             }
 
-            let network: IpAddr = parts[0].parse()
+            let network: IpAddr = parts[0]
+                .parse()
                 .map_err(|_| WafError::ConfigError(format!("Invalid IP address: {}", parts[0])))?;
-            
-            let prefix_len: u8 = parts[1].parse()
-                .map_err(|_| WafError::ConfigError(format!("Invalid prefix length: {}", parts[1])))?;
+
+            let prefix_len: u8 = parts[1].parse().map_err(|_| {
+                WafError::ConfigError(format!("Invalid prefix length: {}", parts[1]))
+            })?;
 
             // Validate prefix length
             match network {
                 IpAddr::V4(_) => {
                     if prefix_len > 32 {
-                        return Err(WafError::ConfigError("IPv4 prefix length cannot exceed 32".to_string()));
+                        return Err(WafError::ConfigError(
+                            "IPv4 prefix length cannot exceed 32".to_string(),
+                        ));
                     }
                 }
                 IpAddr::V6(_) => {
                     if prefix_len > 128 {
-                        return Err(WafError::ConfigError("IPv6 prefix length cannot exceed 128".to_string()));
+                        return Err(WafError::ConfigError(
+                            "IPv6 prefix length cannot exceed 128".to_string(),
+                        ));
                     }
                 }
             }
 
-            Ok(IpOrCidr::Cidr(CidrRange { network, prefix_len }))
+            Ok(IpOrCidr::Cidr(CidrRange {
+                network,
+                prefix_len,
+            }))
         } else {
             // Individual IP
-            let ip: IpAddr = ip_str.parse()
+            let ip: IpAddr = ip_str
+                .parse()
                 .map_err(|_| WafError::ConfigError(format!("Invalid IP address: {}", ip_str)))?;
             Ok(IpOrCidr::Ip(ip))
         }
@@ -191,16 +203,24 @@ impl IpSet {
     fn parse_cidr(cidr_str: &str) -> Result<CidrRange> {
         let parts: Vec<&str> = cidr_str.split('/').collect();
         if parts.len() != 2 {
-            return Err(WafError::ConfigError(format!("Invalid CIDR format: {}", cidr_str)));
+            return Err(WafError::ConfigError(format!(
+                "Invalid CIDR format: {}",
+                cidr_str
+            )));
         }
 
-        let network: IpAddr = parts[0].parse()
+        let network: IpAddr = parts[0]
+            .parse()
             .map_err(|_| WafError::ConfigError(format!("Invalid IP address: {}", parts[0])))?;
-        
-        let prefix_len: u8 = parts[1].parse()
+
+        let prefix_len: u8 = parts[1]
+            .parse()
             .map_err(|_| WafError::ConfigError(format!("Invalid prefix length: {}", parts[1])))?;
 
-        Ok(CidrRange { network, prefix_len })
+        Ok(CidrRange {
+            network,
+            prefix_len,
+        })
     }
 
     /// Check if the set contains the given IP
@@ -244,7 +264,8 @@ impl IpSet {
             IpOrCidr::Cidr(cidr) => {
                 let initial_len = self.cidr_ranges.len();
                 self.cidr_ranges.retain(|existing_cidr| {
-                    !(existing_cidr.network == cidr.network && existing_cidr.prefix_len == cidr.prefix_len)
+                    !(existing_cidr.network == cidr.network
+                        && existing_cidr.prefix_len == cidr.prefix_len)
                 });
                 self.cidr_ranges.len() < initial_len
             }
@@ -256,12 +277,8 @@ impl CidrRange {
     /// Check if the CIDR range contains the given IP
     fn contains(&self, ip: IpAddr) -> bool {
         match (self.network, ip) {
-            (IpAddr::V4(network), IpAddr::V4(ip)) => {
-                self.contains_ipv4(network, ip)
-            }
-            (IpAddr::V6(network), IpAddr::V6(ip)) => {
-                self.contains_ipv6(network, ip)
-            }
+            (IpAddr::V4(network), IpAddr::V4(ip)) => self.contains_ipv4(network, ip),
+            (IpAddr::V6(network), IpAddr::V6(ip)) => self.contains_ipv6(network, ip),
             _ => false, // IPv4/IPv6 mismatch
         }
     }
@@ -271,7 +288,7 @@ impl CidrRange {
         let network_bits = u32::from(network);
         let ip_bits = u32::from(ip);
         let mask = !((1u32 << (32 - self.prefix_len)) - 1);
-        
+
         (network_bits & mask) == (ip_bits & mask)
     }
 
@@ -280,7 +297,7 @@ impl CidrRange {
         let network_bits = u128::from(network);
         let ip_bits = u128::from(ip);
         let mask = !((1u128 << (128 - self.prefix_len)) - 1);
-        
+
         (network_bits & mask) == (ip_bits & mask)
     }
 }

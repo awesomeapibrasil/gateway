@@ -1,7 +1,6 @@
 //! URL-based filtering for WAF
 
 use regex::Regex;
-use crate::{WafError, Result};
 
 /// URL filter for blocking requests based on URL patterns
 pub struct UrlFilter {
@@ -40,17 +39,18 @@ impl UrlFilter {
     /// Default malicious patterns
     fn default_patterns() -> Vec<Regex> {
         let patterns = [
-            r"\.\.[\\/]",           // Directory traversal
-            r"<script[^>]*>",       // XSS
-            r"javascript:",         // JavaScript protocol
-            r"vbscript:",          // VBScript protocol
-            r"union\s+select",     // SQL injection
-            r"drop\s+table",       // SQL injection
-            r"exec\(",            // Code execution
-            r"eval\(",            // Code execution
+            r"\.\.[\\/]",      // Directory traversal
+            r"<script[^>]*>",  // XSS
+            r"javascript:",    // JavaScript protocol
+            r"vbscript:",      // VBScript protocol
+            r"union\s+select", // SQL injection
+            r"drop\s+table",   // SQL injection
+            r"exec\(",         // Code execution
+            r"eval\(",         // Code execution
         ];
 
-        patterns.iter()
+        patterns
+            .iter()
             .filter_map(|&p| Regex::new(&format!("(?i){}", p)).ok())
             .collect()
     }

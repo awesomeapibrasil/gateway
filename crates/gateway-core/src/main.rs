@@ -43,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
 
     info!("Starting Pingora-based API Gateway v0.1.0");
-    
+
     // Load configuration
     let config = match GatewayConfig::from_file(&args.config) {
         Ok(config) => config,
@@ -65,9 +65,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize and start the gateway
     let gateway = Gateway::new(config).await?;
-    
+
     info!("Gateway initialized, starting services...");
-    
+
     if let Err(e) = gateway.run().await {
         error!("Gateway error: {}", e);
         process::exit(1);

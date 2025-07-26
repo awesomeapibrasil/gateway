@@ -17,6 +17,22 @@ pub enum HttpMethod {
     CONNECT,
 }
 
+impl std::fmt::Display for HttpMethod {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HttpMethod::GET => write!(f, "GET"),
+            HttpMethod::POST => write!(f, "POST"),
+            HttpMethod::PUT => write!(f, "PUT"),
+            HttpMethod::DELETE => write!(f, "DELETE"),
+            HttpMethod::PATCH => write!(f, "PATCH"),
+            HttpMethod::HEAD => write!(f, "HEAD"),
+            HttpMethod::OPTIONS => write!(f, "OPTIONS"),
+            HttpMethod::TRACE => write!(f, "TRACE"),
+            HttpMethod::CONNECT => write!(f, "CONNECT"),
+        }
+    }
+}
+
 impl From<&http::Method> for HttpMethod {
     fn from(method: &http::Method) -> Self {
         match method {

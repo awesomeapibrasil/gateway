@@ -1,6 +1,5 @@
 //! Distributed Cache Manager
 
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -27,10 +26,27 @@ pub struct CacheManager {
 }
 
 impl CacheManager {
-    pub async fn new(_config: &CacheConfig, _database: std::sync::Arc<gateway_database::DatabaseManager>) -> Result<Self, String> {
+    pub async fn new(
+        _config: &CacheConfig,
+        _database: std::sync::Arc<gateway_database::DatabaseManager>,
+    ) -> Result<Self, String> {
         Ok(Self {
             config: _config.clone(),
         })
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.config.enabled
+    }
+
+    pub async fn get(&self, _uri: &str) -> Result<Option<Vec<u8>>, String> {
+        // Placeholder implementation
+        Ok(None)
+    }
+
+    pub async fn set(&self, _uri: &str, _data: &[u8]) -> Result<(), String> {
+        // Placeholder implementation
+        Ok(())
     }
 
     pub async fn is_healthy(&self) -> bool {

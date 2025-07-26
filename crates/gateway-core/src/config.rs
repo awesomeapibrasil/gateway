@@ -98,7 +98,7 @@ pub struct DatabaseConfig {
 }
 
 /// Authentication configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AuthConfig {
     pub enabled: bool,
     pub jwt_secret: String,
@@ -109,14 +109,14 @@ pub struct AuthConfig {
 }
 
 /// Authentication provider configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AuthProviderConfig {
     pub provider_type: String, // "jwt", "oauth2", "ldap", "saml"
     pub config: HashMap<String, String>,
 }
 
 /// Monitoring configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MonitoringConfig {
     pub enabled: bool,
     pub metrics_port: u16,
@@ -127,7 +127,7 @@ pub struct MonitoringConfig {
 }
 
 /// Prometheus configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PrometheusConfig {
     pub enabled: bool,
     pub endpoint: String,
@@ -135,7 +135,7 @@ pub struct PrometheusConfig {
 }
 
 /// Tracing configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TracingConfig {
     pub enabled: bool,
     pub endpoint: String,
@@ -143,7 +143,7 @@ pub struct TracingConfig {
 }
 
 /// Plugin configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PluginConfig {
     pub enabled: bool,
     pub plugin_dir: String,
@@ -151,14 +151,14 @@ pub struct PluginConfig {
 }
 
 /// Plugin instance configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PluginInstanceConfig {
     pub enabled: bool,
     pub config: HashMap<String, serde_json::Value>,
 }
 
 /// Upstream configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct UpstreamConfig {
     pub backends: Vec<BackendConfig>,
     pub load_balancing: LoadBalancingConfig,
@@ -167,7 +167,7 @@ pub struct UpstreamConfig {
 }
 
 /// Backend configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BackendConfig {
     pub name: String,
     pub address: String,
@@ -178,7 +178,7 @@ pub struct BackendConfig {
 }
 
 /// Load balancing configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct LoadBalancingConfig {
     pub algorithm: String, // "round_robin", "least_connections", "ip_hash", "weighted"
     pub sticky_sessions: bool,
@@ -186,7 +186,7 @@ pub struct LoadBalancingConfig {
 }
 
 /// Health check configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct HealthCheckConfig {
     pub enabled: bool,
     pub interval: Duration,
@@ -197,7 +197,7 @@ pub struct HealthCheckConfig {
 }
 
 /// Circuit breaker configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CircuitBreakerConfig {
     pub enabled: bool,
     pub failure_threshold: u32,
@@ -269,7 +269,7 @@ impl Default for CacheConfig {
             enabled: true,
             backend: "memory".to_string(),
             ttl: Duration::from_secs(300), // 5 minutes
-            max_size: 100 * 1024 * 1024,  // 100MB
+            max_size: 100 * 1024 * 1024,   // 100MB
             compression: true,
             redis: None,
         }
@@ -407,17 +407,22 @@ impl Default for CircuitBreakerConfig {
 impl GatewayConfig {
     /// Load configuration from a file
     pub fn from_file(path: &str) -> Result<Self> {
-        let content = fs::read_to_string(path)
-            .map_err(|e| GatewayError::ConfigError(format!("Failed to read config file {}: {}", path, e)))?;
+        let content = fs::read_to_string(path).map_err(|e| {
+            GatewayError::ConfigError(format!("Failed to read config file {}: {}", path, e))
+        })?;
 
         let config: GatewayConfig = if path.ends_with(".yaml") || path.ends_with(".yml") {
-            serde_yaml::from_str(&content)
-                .map_err(|e| GatewayError::ConfigError(format!("Failed to parse YAML config: {}", e)))?
+            serde_yaml::from_str(&content).map_err(|e| {
+                GatewayError::ConfigError(format!("Failed to parse YAML config: {}", e))
+            })?
         } else if path.ends_with(".toml") {
-            toml::from_str(&content)
-                .map_err(|e| GatewayError::ConfigError(format!("Failed to parse TOML config: {}", e)))?
+            toml::from_str(&content).map_err(|e| {
+                GatewayError::ConfigError(format!("Failed to parse TOML config: {}", e))
+            })?
         } else {
-            return Err(GatewayError::ConfigError("Unsupported config file format. Use .yaml, .yml, or .toml".to_string()));
+            return Err(GatewayError::ConfigError(
+                "Unsupported config file format. Use .yaml, .yml, or .toml".to_string(),
+            ));
         };
 
         config.validate()?;
@@ -428,22 +433,30 @@ impl GatewayConfig {
     pub fn validate(&self) -> Result<()> {
         // Validate bind address
         if self.server.bind_address.parse::<SocketAddr>().is_err() {
-            return Err(GatewayError::ConfigError("Invalid bind address".to_string()));
+            return Err(GatewayError::ConfigError(
+                "Invalid bind address".to_string(),
+            ));
         }
 
         // Validate worker threads
         if self.server.worker_threads == 0 {
-            return Err(GatewayError::ConfigError("Worker threads must be greater than 0".to_string()));
+            return Err(GatewayError::ConfigError(
+                "Worker threads must be greater than 0".to_string(),
+            ));
         }
 
         // Validate upstream backends
         if self.upstream.backends.is_empty() {
-            return Err(GatewayError::ConfigError("At least one backend must be configured".to_string()));
+            return Err(GatewayError::ConfigError(
+                "At least one backend must be configured".to_string(),
+            ));
         }
 
         for backend in &self.upstream.backends {
             if backend.address.is_empty() {
-                return Err(GatewayError::ConfigError("Backend address cannot be empty".to_string()));
+                return Err(GatewayError::ConfigError(
+                    "Backend address cannot be empty".to_string(),
+                ));
             }
         }
 
@@ -453,17 +466,22 @@ impl GatewayConfig {
     /// Save configuration to a file
     pub fn to_file(&self, path: &str) -> Result<()> {
         let content = if path.ends_with(".yaml") || path.ends_with(".yml") {
-            serde_yaml::to_string(self)
-                .map_err(|e| GatewayError::ConfigError(format!("Failed to serialize to YAML: {}", e)))?
+            serde_yaml::to_string(self).map_err(|e| {
+                GatewayError::ConfigError(format!("Failed to serialize to YAML: {}", e))
+            })?
         } else if path.ends_with(".toml") {
-            toml::to_string(self)
-                .map_err(|e| GatewayError::ConfigError(format!("Failed to serialize to TOML: {}", e)))?
+            toml::to_string(self).map_err(|e| {
+                GatewayError::ConfigError(format!("Failed to serialize to TOML: {}", e))
+            })?
         } else {
-            return Err(GatewayError::ConfigError("Unsupported config file format. Use .yaml, .yml, or .toml".to_string()));
+            return Err(GatewayError::ConfigError(
+                "Unsupported config file format. Use .yaml, .yml, or .toml".to_string(),
+            ));
         };
 
-        fs::write(path, content)
-            .map_err(|e| GatewayError::ConfigError(format!("Failed to write config file {}: {}", path, e)))?;
+        fs::write(path, content).map_err(|e| {
+            GatewayError::ConfigError(format!("Failed to write config file {}: {}", path, e))
+        })?;
 
         Ok(())
     }

@@ -1,16 +1,15 @@
 use std::sync::Arc;
-use std::collections::HashMap;
-use std::net::IpAddr;
 use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
 
-use crate::{WafConfig, WafResult, RequestContext, WafStats, WafError, Result};
-use crate::rules::WafRuleSet;
-use crate::rate_limiter::RateLimiter;
 use crate::ip_filter::IpFilter;
+use crate::rate_limiter::RateLimiter;
+use crate::rules::WafRuleSet;
+use crate::{RequestContext, Result, WafConfig, WafResult, WafStats};
 use gateway_database::DatabaseManager;
 
 /// Main WAF engine that evaluates requests against configured rules
+#[allow(dead_code)]
 pub struct WafEngine {
     config: Arc<RwLock<WafConfig>>,
     rules: Arc<RwLock<WafRuleSet>>,
@@ -25,13 +24,18 @@ impl WafEngine {
     pub async fn new(config: &WafConfig, database: Arc<DatabaseManager>) -> Result<Self> {
         info!("Initializing WAF engine");
 
-        let rules = WafRuleSet::load_from_file(&config.rules_path).await
+        let rules = WafRuleSet::load_from_file(&config.rules_path)
+            .await
             .unwrap_or_else(|e| {
-                warn!("Failed to load WAF rules from {}: {}, using default rules", config.rules_path, e);
+                warn!(
+                    "Failed to load WAF rules from {}: {}, using default rules",
+                    config.rules_path, e
+                );
                 WafRuleSet::default()
             });
 
-        let rate_limiter = Arc::new(RateLimiter::new(&config.rate_limiting, database.clone()).await?);
+        let rate_limiter =
+            Arc::new(RateLimiter::new(&config.rate_limiting, database.clone()).await?);
         let ip_filter = Arc::new(IpFilter::new(&config.ip_whitelist, &config.ip_blacklist));
 
         Ok(Self {
@@ -47,7 +51,7 @@ impl WafEngine {
     /// Evaluate a request against WAF rules
     pub async fn evaluate_request(&self, request: &RequestContext) -> Result<WafResult> {
         let config = self.config.read().await;
-        
+
         if !config.enabled {
             return Ok(WafResult::Allow);
         }
@@ -58,7 +62,10 @@ impl WafEngine {
             stats.total_requests += 1;
         }
 
-        debug!("Evaluating WAF rules for request: {} {}", request.method, request.uri);
+        debug!(
+            "Evaluating WAF rules for request: {} {}",
+            request.method, request.uri
+        );
 
         // 1. Check request size
         if let Some(content_length) = request.content_length {
@@ -71,12 +78,15 @@ impl WafEngine {
 
         // 2. IP filtering
         match self.ip_filter.check_ip(request.client_ip).await {
-            Ok(true) => {}, // IP is allowed
+            Ok(true) => {} // IP is allowed
             Ok(false) => {
                 let mut stats = self.stats.write().await;
                 stats.blocked_requests += 1;
                 stats.ip_blocks += 1;
-                return Ok(WafResult::Block(format!("IP {} is blocked", request.client_ip)));
+                return Ok(WafResult::Block(format!(
+                    "IP {} is blocked",
+                    request.client_ip
+                )));
             }
             Err(e) => {
                 warn!("IP filter error: {}", e);
@@ -85,7 +95,7 @@ impl WafEngine {
 
         // 3. Rate limiting
         match self.rate_limiter.check_request(request).await {
-            Ok(true) => {}, // Request is within rate limits
+            Ok(true) => {} // Request is within rate limits
             Ok(false) => {
                 let mut stats = self.stats.write().await;
                 stats.rate_limited_requests += 1;
@@ -113,7 +123,10 @@ impl WafEngine {
                     let mut stats = self.stats.write().await;
                     stats.blocked_requests += 1;
                     stats.header_blocks += 1;
-                    return Ok(WafResult::Block(format!("Blocked user agent: {}", blocked_ua)));
+                    return Ok(WafResult::Block(format!(
+                        "Blocked user agent: {}",
+                        blocked_ua
+                    )));
                 }
             }
         }
@@ -123,7 +136,9 @@ impl WafEngine {
             let mut stats = self.stats.write().await;
             stats.blocked_requests += 1;
             stats.url_blocks += 1;
-            return Ok(WafResult::Block("Malicious URL pattern detected".to_string()));
+            return Ok(WafResult::Block(
+                "Malicious URL pattern detected".to_string(),
+            ));
         }
 
         // 7. Custom rules evaluation
@@ -146,7 +161,7 @@ impl WafEngine {
                     stats.rate_limited_requests += 1;
                     return Ok(WafResult::RateLimit(reason));
                 }
-                Ok(WafResult::Allow) => {},
+                Ok(WafResult::Allow) => {}
                 Err(e) => {
                     warn!("Error evaluating rule {}: {}", rule.id, e);
                 }
@@ -160,16 +175,25 @@ impl WafEngine {
     /// Check if URL contains malicious patterns
     fn is_malicious_url(&self, url: &str) -> bool {
         let malicious_patterns = [
-            "../", "..\\",  // Directory traversal
-            "<script", "</script>", // XSS
-            "union select", "drop table", "delete from", // SQL injection
-            "javascript:", "vbscript:", // Script injection
-            "%3Cscript", "%3C%2Fscript%3E", // Encoded XSS
-            "eval(", "exec(", // Code execution
+            "../",
+            "..\\", // Directory traversal
+            "<script",
+            "</script>", // XSS
+            "union select",
+            "drop table",
+            "delete from", // SQL injection
+            "javascript:",
+            "vbscript:", // Script injection
+            "%3Cscript",
+            "%3C%2Fscript%3E", // Encoded XSS
+            "eval(",
+            "exec(", // Code execution
         ];
 
         let url_lower = url.to_lowercase();
-        malicious_patterns.iter().any(|&pattern| url_lower.contains(pattern))
+        malicious_patterns
+            .iter()
+            .any(|&pattern| url_lower.contains(pattern))
     }
 
     /// Get current WAF statistics
@@ -186,25 +210,32 @@ impl WafEngine {
 
         // Reload rules if the rules path changed
         if config.rules_path != new_config.rules_path {
-            let new_rules = WafRuleSet::load_from_file(&new_config.rules_path).await
+            let new_rules = WafRuleSet::load_from_file(&new_config.rules_path)
+                .await
                 .unwrap_or_else(|e| {
                     warn!("Failed to load new WAF rules: {}", e);
                     WafRuleSet::default()
                 });
-            
+
             let mut rules = self.rules.write().await;
             *rules = new_rules;
         }
 
         // Update rate limiter if needed
         if config.rate_limiting != new_config.rate_limiting {
-            if let Err(e) = self.rate_limiter.update_config(&new_config.rate_limiting).await {
+            if let Err(e) = self
+                .rate_limiter
+                .update_config(&new_config.rate_limiting)
+                .await
+            {
                 warn!("Failed to update rate limiter config: {}", e);
             }
         }
 
         // Update IP filter
-        self.ip_filter.update_lists(&new_config.ip_whitelist, &new_config.ip_blacklist).await;
+        self.ip_filter
+            .update_lists(&new_config.ip_whitelist, &new_config.ip_blacklist)
+            .await;
 
         info!("WAF configuration updated successfully");
         Ok(())
@@ -219,12 +250,12 @@ impl WafEngine {
     /// Reload WAF rules from file
     pub async fn reload_rules(&self) -> Result<()> {
         let config = self.config.read().await;
-        
+
         let new_rules = WafRuleSet::load_from_file(&config.rules_path).await?;
-        
+
         let mut rules = self.rules.write().await;
         *rules = new_rules;
-        
+
         info!("WAF rules reloaded successfully");
         Ok(())
     }
