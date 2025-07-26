@@ -1242,6 +1242,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "gateway"
+version = "0.1.0"
+dependencies = [
+ "gateway-auth",
+ "gateway-cache",
+ "gateway-core",
+ "gateway-database",
+ "gateway-monitoring",
+ "gateway-plugins",
+ "gateway-waf",
+ "tokio",
+]
+
+[[package]]
 name = "gateway-auth"
 version = "0.1.0"
 dependencies = [

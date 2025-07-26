@@ -9,6 +9,26 @@ members = [
     "crates/gateway-plugins",
 ]
 resolver = "2"
+default-members = ["crates/gateway-core"]
+
+[package]
+name = "gateway"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gateway-core = { path = "crates/gateway-core" }
+gateway-waf = { path = "crates/gateway-waf" }
+gateway-cache = { path = "crates/gateway-cache" }
+gateway-database = { path = "crates/gateway-database" }
+gateway-auth = { path = "crates/gateway-auth" }
+gateway-monitoring = { path = "crates/gateway-monitoring" }
+gateway-plugins = { path = "crates/gateway-plugins" }
+tokio = { workspace = true, features = ["test-util"] }
+
+[[bin]]
+name = "gateway"
+path = "crates/gateway-core/src/main.rs"
 
 [workspace.dependencies]
 # Note: Pingora is not yet publicly available, using alternative implementations
