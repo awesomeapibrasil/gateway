@@ -36,8 +36,8 @@ tower = "0.4"
 tower-http = { version = "0.5", features = ["full"] }
 
 # Database drivers
-sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "mysql", "sqlite"] }
-mongodb = "2.8"
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "mysql", "sqlite"] }
+mongodb = "3.0"
 aws-sdk-dynamodb = "1.0"
 redis = { version = "0.24", features = ["tokio-comp"] }
 
@@ -50,7 +50,7 @@ ring = "0.17"
 # Observability
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-prometheus = "0.13"
+prometheus = "0.14"
 opentelemetry = "0.21"
 
 # Configuration

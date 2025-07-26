@@ -289,7 +289,7 @@ impl AuthManager {
 }
 
 impl CacheManager {
-    pub async fn get(&self, _request: &RequestMetadata) -> Result<Option<CachedResponse>, String> {
+    pub async fn get(&self, _request: &RequestMetadata) -> std::result::Result<Option<CachedResponse>, String> {
         if !self.config.enabled {
             return Ok(None);
         }
@@ -297,7 +297,7 @@ impl CacheManager {
         Ok(None)
     }
 
-    pub async fn set(&self, _request: &RequestMetadata, _response: &ResponseMetadata) -> Result<(), String> {
+    pub async fn set(&self, _request: &RequestMetadata, _response: &ResponseMetadata) -> std::result::Result<(), String> {
         if !self.config.enabled {
             return Ok(());
         }
