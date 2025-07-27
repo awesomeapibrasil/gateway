@@ -89,7 +89,7 @@ pub struct RedisConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DatabaseConfig {
     pub enabled: bool,
-    pub backend: String, // "postgres", "mysql", "mongodb", "dynamodb", "firebase"
+    pub backend: String, // "postgres", "sqlite", "mongodb", "dynamodb", "firebase"
     pub url: String,
     pub pool_size: u32,
     pub timeout: Duration,
