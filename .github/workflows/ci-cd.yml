@@ -76,7 +76,6 @@ jobs:
       with:
         log-level: warn
         command: check
-        arguments: --all-features
 
   build:
     name: Build and Push Docker Image
