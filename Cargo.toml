@@ -26,10 +26,6 @@ gateway-monitoring = { path = "crates/gateway-monitoring" }
 gateway-plugins = { path = "crates/gateway-plugins" }
 tokio = { workspace = true, features = ["test-util"] }
 
-[[bin]]
-name = "gateway"
-path = "crates/gateway-core/src/main.rs"
-
 [workspace.dependencies]
 # Note: Pingora is not yet publicly available, using alternative implementations
 # pingora = "0.1"

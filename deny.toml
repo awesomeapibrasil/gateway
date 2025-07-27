@@ -71,7 +71,7 @@ feature-depth = 1
 # output a note when they are encountered.
 ignore = [
     # RSA timing attack - no fix available yet, medium severity
-    { id = "RUSTSEC-2023-0071", reason = "RSA timing attack with no available fix" },
+    "RUSTSEC-2023-0071",
 ]
 # If this is true, then cargo deny will use the git executable to fetch advisory database.
 # If this is false, then it uses a built-in git library.
