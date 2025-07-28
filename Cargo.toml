@@ -15,6 +15,7 @@ default-members = ["crates/gateway-core"]
 name = "gateway"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 
 [dependencies]
 gateway-core = { path = "crates/gateway-core" }

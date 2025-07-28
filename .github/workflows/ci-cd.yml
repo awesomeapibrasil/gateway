@@ -82,7 +82,6 @@ jobs:
       with:
         log-level: warn
         command: check
-        arguments: --hide-inclusion-graph
 
   build:
     name: Build and Push Docker Image
