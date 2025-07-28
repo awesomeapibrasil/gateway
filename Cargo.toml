@@ -1,0 +1,93 @@
+[workspace]
+members = [
+    "crates/gateway-core",
+    "crates/gateway-waf",
+    "crates/gateway-cache",
+    "crates/gateway-database",
+    "crates/gateway-auth",
+    "crates/gateway-monitoring",
+    "crates/gateway-plugins",
+]
+resolver = "2"
+default-members = ["crates/gateway-core"]
+
+[package]
+name = "gateway"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+gateway-core = { path = "crates/gateway-core" }
+gateway-waf = { path = "crates/gateway-waf" }
+gateway-cache = { path = "crates/gateway-cache" }
+gateway-database = { path = "crates/gateway-database" }
+gateway-auth = { path = "crates/gateway-auth" }
+gateway-monitoring = { path = "crates/gateway-monitoring" }
+gateway-plugins = { path = "crates/gateway-plugins" }
+tokio = { workspace = true, features = ["test-util"] }
+
+[workspace.dependencies]
+# Note: Pingora is not yet publicly available, using alternative implementations
+# pingora = "0.1"
+# pingora-core = "0.1"
+# pingora-proxy = "0.1"
+# pingora-load-balancing = "0.1"
+# pingora-cache = "0.1"
+
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+async-trait = "0.1"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+toml = "0.9"
+
+# HTTP/Web
+hyper = { version = "1.0", features = ["full"] }
+http = "1.0"
+axum = "0.7"
+tower = "0.5"
+tower-http = { version = "0.5", features = ["full"] }
+
+# Database drivers
+sqlx = { version = "=0.8.6", default-features = false, features = ["runtime-tokio-rustls", "migrate", "postgres", "sqlite"] }
+mongodb = "3.2"
+aws-sdk-dynamodb = "1.86"
+redis = { version = "0.32", features = ["tokio-comp"] }
+
+# Security & Crypto
+jsonwebtoken = "9.0"
+bcrypt = "0.17"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+ring = "0.17"
+
+# Observability
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+prometheus = "0.14"
+opentelemetry = "0.30"
+
+# Configuration
+config = "0.15"
+clap = { version = "4.0", features = ["derive"] }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "2.0"
+
+# Utilities
+dashmap = "6.1"
+once_cell = "1.19"
+regex = "1.10"
+url = "2.5"
+chrono = { version = "0.4", features = ["serde"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

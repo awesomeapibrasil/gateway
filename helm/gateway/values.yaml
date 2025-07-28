@@ -1,0 +1,255 @@
+# Default values for gateway.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 3
+
+image:
+  repository: gcr.io/your-project/gateway
+  pullPolicy: IfNotPresent
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  fsGroup: 1000
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 8080
+  targetPort: 8080
+  annotations: {}
+
+metrics:
+  enabled: true
+  port: 9090
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: gateway.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: gateway-tls
+  #    hosts:
+  #      - gateway.local
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - gateway
+        topologyKey: kubernetes.io/hostname
+
+# Gateway configuration
+config:
+  server:
+    bind_address: "0.0.0.0:8080"
+    worker_threads: 4
+    debug: false
+    max_connections: 10000
+    connection_timeout: "30s"
+    keep_alive_timeout: "60s"
+    graceful_shutdown_timeout: "30s"
+
+  waf:
+    enabled: true
+    rate_limiting:
+      enabled: true
+      requests_per_minute: 1000
+      burst_limit: 100
+      window_size: "60s"
+      storage_backend: "memory"
+    ip_whitelist: []
+    ip_blacklist: []
+    blocked_headers: []
+    blocked_user_agents: []
+    max_request_size: 10485760
+    block_malicious_ips: true
+
+  cache:
+    enabled: true
+    backend: "memory"
+    ttl: "300s"
+    max_size: 104857600
+    compression: true
+
+  database:
+    enabled: false
+    backend: "postgres"
+    url: ""
+    pool_size: 10
+    timeout: "30s"
+    ssl_mode: "prefer"
+
+  auth:
+    enabled: false
+    jwt_secret: ""
+    jwt_expiry: "3600s"
+    require_auth: false
+    public_paths:
+      - "/health"
+      - "/metrics"
+
+  monitoring:
+    enabled: true
+    metrics_port: 9090
+    log_level: "info"
+    health_check_path: "/health"
+    prometheus:
+      enabled: true
+      endpoint: "/metrics"
+      namespace: "gateway"
+
+  upstream:
+    backends: []
+    load_balancing:
+      algorithm: "round_robin"
+      sticky_sessions: false
+    health_check:
+      enabled: true
+      interval: "30s"
+      timeout: "5s"
+      retries: 3
+      path: "/health"
+      expected_status: 200
+    circuit_breaker:
+      enabled: true
+      failure_threshold: 5
+      timeout: "60s"
+      half_open_max_calls: 3
+
+# Persistence for logs and data
+persistence:
+  enabled: false
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 8Gi
+
+# ConfigMap for WAF rules
+wafRules:
+  enabled: true
+  rules: |
+    version: "1.0"
+    rules:
+      - id: "sql_injection_basic"
+        name: "Basic SQL Injection Protection"
+        description: "Detects common SQL injection patterns"
+        severity: "high"
+        enabled: true
+        conditions:
+          - field: "uri"
+            operator: "regex"
+            value: "(?i)(union\\s+select|drop\\s+table|delete\\s+from)"
+            case_sensitive: false
+        action:
+          action_type: "block"
+          message: "SQL injection attempt detected"
+          score: 100
+
+# RBAC
+rbac:
+  create: true
+  rules:
+    - apiGroups: [""]
+      resources: ["configmaps", "secrets"]
+      verbs: ["get", "list", "watch"]
+
+# Network policies
+networkPolicy:
+  enabled: false
+  ingress: []
+  egress: []
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Probes
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+startupProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 1
+  failureThreshold: 30

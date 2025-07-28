@@ -1,0 +1,43 @@
+[package]
+name = "gateway-core"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+# Note: Pingora dependencies commented out until publicly available
+# pingora = { workspace = true }
+# pingora-core = { workspace = true }
+# pingora-proxy = { workspace = true }
+# pingora-load-balancing = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+toml = { workspace = true }
+hyper = { workspace = true }
+http = { workspace = true }
+tower = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+config = { workspace = true }
+clap = { workspace = true }
+dashmap = { workspace = true }
+once_cell = { workspace = true }
+url = { workspace = true }
+chrono = { workspace = true }
+
+# Local dependencies
+gateway-waf = { path = "../gateway-waf" }
+gateway-cache = { path = "../gateway-cache" }
+gateway-database = { path = "../gateway-database" }
+gateway-auth = { path = "../gateway-auth" }
+gateway-monitoring = { path = "../gateway-monitoring" }
+gateway-plugins = { path = "../gateway-plugins" }
+
+[[bin]]
+name = "gateway"
+path = "src/main.rs"
