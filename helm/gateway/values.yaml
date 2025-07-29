@@ -224,16 +224,16 @@ config:
     default_backend_protocol: "http"
     default_ssl_redirect: false
     annotations:
-      backend_protocol: "gateway.io/backend-protocol"
-      ssl_redirect: "gateway.io/ssl-redirect"
-      rate_limit: "gateway.io/rate-limit"
-      auth_type: "gateway.io/auth-type"
-      plugins: "gateway.io/plugins"
-      upstream_timeout: "gateway.io/upstream-timeout"
-      load_balancer: "gateway.io/load-balancer"
-      circuit_breaker: "gateway.io/circuit-breaker"
-      cors: "gateway.io/cors"
-      compression: "gateway.io/compression"
+      backend_protocol: "gateway.awesomeapi.com.br/backend-protocol"
+      ssl_redirect: "gateway.awesomeapi.com.br/ssl-redirect"
+      rate_limit: "gateway.awesomeapi.com.br/rate-limit"
+      auth_type: "gateway.awesomeapi.com.br/auth-type"
+      plugins: "gateway.awesomeapi.com.br/plugins"
+      upstream_timeout: "gateway.awesomeapi.com.br/upstream-timeout"
+      load_balancer: "gateway.awesomeapi.com.br/load-balancer"
+      circuit_breaker: "gateway.awesomeapi.com.br/circuit-breaker"
+      cors: "gateway.awesomeapi.com.br/cors"
+      compression: "gateway.awesomeapi.com.br/compression"
 
 # Persistence for logs and data
 persistence:

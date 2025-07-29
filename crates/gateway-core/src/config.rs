@@ -131,16 +131,16 @@ pub struct IngressConfig {
 /// Ingress annotations configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IngressAnnotationsConfig {
-    pub backend_protocol: String, // "gateway.io/backend-protocol"
-    pub ssl_redirect: String,     // "gateway.io/ssl-redirect"
-    pub rate_limit: String,       // "gateway.io/rate-limit"
-    pub auth_type: String,        // "gateway.io/auth-type"
-    pub plugins: String,          // "gateway.io/plugins"
-    pub upstream_timeout: String, // "gateway.io/upstream-timeout"
-    pub load_balancer: String,    // "gateway.io/load-balancer"
-    pub circuit_breaker: String,  // "gateway.io/circuit-breaker"
-    pub cors: String,             // "gateway.io/cors"
-    pub compression: String,      // "gateway.io/compression"
+    pub backend_protocol: String, // "gateway.awesomeapi.com.br/backend-protocol"
+    pub ssl_redirect: String,     // "gateway.awesomeapi.com.br/ssl-redirect"
+    pub rate_limit: String,       // "gateway.awesomeapi.com.br/rate-limit"
+    pub auth_type: String,        // "gateway.awesomeapi.com.br/auth-type"
+    pub plugins: String,          // "gateway.awesomeapi.com.br/plugins"
+    pub upstream_timeout: String, // "gateway.awesomeapi.com.br/upstream-timeout"
+    pub load_balancer: String,    // "gateway.awesomeapi.com.br/load-balancer"
+    pub circuit_breaker: String,  // "gateway.awesomeapi.com.br/circuit-breaker"
+    pub cors: String,             // "gateway.awesomeapi.com.br/cors"
+    pub compression: String,      // "gateway.awesomeapi.com.br/compression"
 }
 
 /// WAF configuration
@@ -660,16 +660,16 @@ impl Default for IngressConfig {
 impl Default for IngressAnnotationsConfig {
     fn default() -> Self {
         Self {
-            backend_protocol: "gateway.io/backend-protocol".to_string(),
-            ssl_redirect: "gateway.io/ssl-redirect".to_string(),
-            rate_limit: "gateway.io/rate-limit".to_string(),
-            auth_type: "gateway.io/auth-type".to_string(),
-            plugins: "gateway.io/plugins".to_string(),
-            upstream_timeout: "gateway.io/upstream-timeout".to_string(),
-            load_balancer: "gateway.io/load-balancer".to_string(),
-            circuit_breaker: "gateway.io/circuit-breaker".to_string(),
-            cors: "gateway.io/cors".to_string(),
-            compression: "gateway.io/compression".to_string(),
+            backend_protocol: "gateway.awesomeapi.com.br/backend-protocol".to_string(),
+            ssl_redirect: "gateway.awesomeapi.com.br/ssl-redirect".to_string(),
+            rate_limit: "gateway.awesomeapi.com.br/rate-limit".to_string(),
+            auth_type: "gateway.awesomeapi.com.br/auth-type".to_string(),
+            plugins: "gateway.awesomeapi.com.br/plugins".to_string(),
+            upstream_timeout: "gateway.awesomeapi.com.br/upstream-timeout".to_string(),
+            load_balancer: "gateway.awesomeapi.com.br/load-balancer".to_string(),
+            circuit_breaker: "gateway.awesomeapi.com.br/circuit-breaker".to_string(),
+            cors: "gateway.awesomeapi.com.br/cors".to_string(),
+            compression: "gateway.awesomeapi.com.br/compression".to_string(),
         }
     }
 }

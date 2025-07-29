@@ -4,13 +4,13 @@ This document describes the annotations supported by the Gateway Ingress Control
 
 ## Overview
 
-The Gateway Ingress Controller uses annotations to configure additional behavior that goes beyond the standard Kubernetes Ingress specification. All annotations use the `gateway.io/` prefix.
+The Gateway Ingress Controller uses annotations to configure additional behavior that goes beyond the standard Kubernetes Ingress specification. All annotations use the `gateway.awesomeapi.com.br/` prefix.
 
 ## Supported Annotations
 
 ### Backend Protocol
 
-**Annotation:** `gateway.io/backend-protocol`
+**Annotation:** `gateway.awesomeapi.com.br/backend-protocol`
 
 **Description:** Specifies the protocol to use when communicating with the backend service.
 
@@ -29,7 +29,7 @@ kind: Ingress
 metadata:
   name: grpc-service
   annotations:
-    gateway.io/backend-protocol: "grpc"
+    gateway.awesomeapi.com.br/backend-protocol: "grpc"
 spec:
   rules:
   - host: api.example.com
@@ -46,7 +46,7 @@ spec:
 
 ### SSL Redirect
 
-**Annotation:** `gateway.io/ssl-redirect`
+**Annotation:** `gateway.awesomeapi.com.br/ssl-redirect`
 
 **Description:** Automatically redirect HTTP requests to HTTPS.
 
@@ -61,7 +61,7 @@ kind: Ingress
 metadata:
   name: secure-app
   annotations:
-    gateway.io/ssl-redirect: "true"
+    gateway.awesomeapi.com.br/ssl-redirect: "true"
 spec:
   tls:
   - hosts:
@@ -81,7 +81,7 @@ spec:
 
 ### Rate Limiting
 
-**Annotation:** `gateway.io/rate-limit`
+**Annotation:** `gateway.awesomeapi.com.br/rate-limit`
 
 **Description:** Configure rate limiting for the ingress route.
 
@@ -97,7 +97,7 @@ kind: Ingress
 metadata:
   name: rate-limited-api
   annotations:
-    gateway.io/rate-limit: |
+    gateway.awesomeapi.com.br/rate-limit: |
       {
         "requests_per_minute": 100,
         "burst": 20,
@@ -119,7 +119,7 @@ spec:
 
 ### Authentication
 
-**Annotation:** `gateway.io/auth-type`
+**Annotation:** `gateway.awesomeapi.com.br/auth-type`
 
 **Description:** Configure authentication for the ingress route.
 
@@ -136,7 +136,7 @@ kind: Ingress
 metadata:
   name: protected-app
   annotations:
-    gateway.io/auth-type: |
+    gateway.awesomeapi.com.br/auth-type: |
       {
         "auth_type": "jwt",
         "realm": "example.com"
@@ -157,7 +157,7 @@ spec:
 
 ### Plugins
 
-**Annotation:** `gateway.io/plugins`
+**Annotation:** `gateway.awesomeapi.com.br/plugins`
 
 **Description:** Configure plugins to be applied to the ingress route.
 
@@ -173,7 +173,7 @@ kind: Ingress
 metadata:
   name: app-with-plugins
   annotations:
-    gateway.io/plugins: |
+    gateway.awesomeapi.com.br/plugins: |
       [
         {
           "name": "request-logging",
@@ -209,7 +209,7 @@ spec:
 
 ### Upstream Timeout
 
-**Annotation:** `gateway.io/upstream-timeout`
+**Annotation:** `gateway.awesomeapi.com.br/upstream-timeout`
 
 **Description:** Configure timeout for upstream requests in seconds.
 
@@ -220,7 +220,7 @@ kind: Ingress
 metadata:
   name: slow-service
   annotations:
-    gateway.io/upstream-timeout: "60"
+    gateway.awesomeapi.com.br/upstream-timeout: "60"
 spec:
   rules:
   - host: slow.example.com
@@ -237,7 +237,7 @@ spec:
 
 ### Load Balancer
 
-**Annotation:** `gateway.io/load-balancer`
+**Annotation:** `gateway.awesomeapi.com.br/load-balancer`
 
 **Description:** Configure load balancing behavior.
 
@@ -253,7 +253,7 @@ kind: Ingress
 metadata:
   name: load-balanced-app
   annotations:
-    gateway.io/load-balancer: |
+    gateway.awesomeapi.com.br/load-balancer: |
       {
         "algorithm": "least_connections",
         "sticky_sessions": true,
@@ -275,7 +275,7 @@ spec:
 
 ### Circuit Breaker
 
-**Annotation:** `gateway.io/circuit-breaker`
+**Annotation:** `gateway.awesomeapi.com.br/circuit-breaker`
 
 **Description:** Configure circuit breaker for upstream services.
 
@@ -292,7 +292,7 @@ kind: Ingress
 metadata:
   name: resilient-app
   annotations:
-    gateway.io/circuit-breaker: |
+    gateway.awesomeapi.com.br/circuit-breaker: |
       {
         "enabled": true,
         "failure_threshold": 5,
@@ -315,7 +315,7 @@ spec:
 
 ### CORS
 
-**Annotation:** `gateway.io/cors`
+**Annotation:** `gateway.awesomeapi.com.br/cors`
 
 **Description:** Configure Cross-Origin Resource Sharing (CORS) headers.
 
@@ -335,7 +335,7 @@ kind: Ingress
 metadata:
   name: cors-enabled-api
   annotations:
-    gateway.io/cors: |
+    gateway.awesomeapi.com.br/cors: |
       {
         "enabled": true,
         "allowed_origins": ["https://app.example.com", "https://admin.example.com"],
@@ -361,7 +361,7 @@ spec:
 
 ### Compression
 
-**Annotation:** `gateway.io/compression`
+**Annotation:** `gateway.awesomeapi.com.br/compression`
 
 **Description:** Configure response compression.
 
@@ -378,7 +378,7 @@ kind: Ingress
 metadata:
   name: compressed-content
   annotations:
-    gateway.io/compression: |
+    gateway.awesomeapi.com.br/compression: |
       {
         "enabled": true,
         "algorithms": ["brotli", "gzip"],
@@ -409,20 +409,20 @@ kind: Ingress
 metadata:
   name: full-featured-app
   annotations:
-    gateway.io/backend-protocol: "https"
-    gateway.io/ssl-redirect: "true"
-    gateway.io/rate-limit: |
+    gateway.awesomeapi.com.br/backend-protocol: "https"
+    gateway.awesomeapi.com.br/ssl-redirect: "true"
+    gateway.awesomeapi.com.br/rate-limit: |
       {
         "requests_per_minute": 1000,
         "burst": 100,
         "key": "ip"
       }
-    gateway.io/auth-type: |
+    gateway.awesomeapi.com.br/auth-type: |
       {
         "auth_type": "jwt",
         "realm": "example.com"
       }
-    gateway.io/plugins: |
+    gateway.awesomeapi.com.br/plugins: |
       [
         {
           "name": "request-logging",
@@ -430,28 +430,28 @@ metadata:
           "config": {"level": "info"}
         }
       ]
-    gateway.io/upstream-timeout: "30"
-    gateway.io/load-balancer: |
+    gateway.awesomeapi.com.br/upstream-timeout: "30"
+    gateway.awesomeapi.com.br/load-balancer: |
       {
         "algorithm": "round_robin",
         "sticky_sessions": false,
         "health_check": true
       }
-    gateway.io/circuit-breaker: |
+    gateway.awesomeapi.com.br/circuit-breaker: |
       {
         "enabled": true,
         "failure_threshold": 5,
         "timeout_seconds": 60,
         "half_open_max_calls": 3
       }
-    gateway.io/cors: |
+    gateway.awesomeapi.com.br/cors: |
       {
         "enabled": true,
         "allowed_origins": ["https://app.example.com"],
         "allowed_methods": ["GET", "POST"],
         "allow_credentials": true
       }
-    gateway.io/compression: |
+    gateway.awesomeapi.com.br/compression: |
       {
         "enabled": true,
         "algorithms": ["brotli", "gzip"],
@@ -519,7 +519,7 @@ The ingress controller will automatically:
 ## Best Practices
 
 1. **Use specific paths**: Prefer `Prefix` or `Exact` path types over `ImplementationSpecific`
-2. **SSL everywhere**: Use `gateway.io/ssl-redirect: "true"` for production applications
+2. **SSL everywhere**: Use `gateway.awesomeapi.com.br/ssl-redirect: "true"` for production applications
 3. **Rate limiting**: Always configure appropriate rate limits for public APIs
 4. **Health checks**: Enable health checks for better load balancing
 5. **Circuit breakers**: Use circuit breakers for external service dependencies
