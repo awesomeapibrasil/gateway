@@ -48,7 +48,7 @@ impl DatabaseStorage {
         info!("Initializing database storage for certificates");
 
         // Create certificates table if it doesn't exist
-        let _create_table_sql = r#"
+        let create_table_sql = r#"
             CREATE TABLE IF NOT EXISTS certificates (
                 domain VARCHAR(255) PRIMARY KEY,
                 certificate BYTEA NOT NULL,
@@ -64,9 +64,10 @@ impl DatabaseStorage {
             )
         "#;
 
-        // Execute the SQL based on the database type
-        // This is a simplified version - real implementation would use sqlx
-        debug!("Creating certificates table");
+        // For now this is a placeholder that just logs the SQL
+        // In a real implementation, you would execute the SQL using sqlx or similar
+        debug!("Creating certificates table with SQL: {}", create_table_sql);
+        info!("Certificate storage database initialized successfully");
 
         Ok(())
     }

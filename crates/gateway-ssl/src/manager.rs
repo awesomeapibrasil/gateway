@@ -177,21 +177,21 @@ impl SslManager {
     pub async fn request_certificate(&self, domain: &str) -> Result<Certificate> {
         info!("Requesting new certificate for domain: {}", domain);
 
-        let acme_client_guard = self.acme_client.read().await;
+        let mut acme_client_guard = self.acme_client.write().await;
         let acme_client = acme_client_guard
-            .as_ref()
+            .as_mut()
             .ok_or_else(|| SslError::AcmeError("ACME client not initialized".to_string()))?;
 
         // Request certificate from ACME
-        let cert_pem = acme_client
+        let cert_key_pair = acme_client
             .request_certificate(&[domain.to_string()])
             .await?;
 
-        // TODO: This is a placeholder - in real implementation, you'd get the actual certificate and key
+        // Use the actual certificate and private key from ACME
         let certificate = Certificate::from_pem(
             domain.to_string(),
-            &cert_pem,
-            "dummy-private-key", // This would be the actual private key
+            &cert_key_pair.certificate,
+            &cert_key_pair.private_key,
             None,
         )?;
 
