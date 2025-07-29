@@ -1,5 +1,8 @@
 # Multi-stage build for optimized production image
-FROM rust:1.82-slim as builder
+FROM rust:1.88-slim as builder
+
+# Set debian frontend to noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -16,10 +19,13 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates/ ./crates/
 
 # Build the application in release mode
-RUN cargo build --release --bin gateway
+RUN cargo build --release --package gateway-core --bin gateway
 
 # Runtime stage
 FROM debian:bookworm-slim
+
+# Set debian frontend to noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
