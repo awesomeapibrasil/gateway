@@ -82,10 +82,19 @@ jobs:
         log-level: warn
         command: check
 
+  lint-dockerfile:
+    name: Lint Dockerfile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: docker/Dockerfile
+
   build:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
-    needs: [test, security]
+    needs: [test, security, lint-dockerfile]
     if: github.ref == 'refs/heads/main'
     permissions:
       contents: read
