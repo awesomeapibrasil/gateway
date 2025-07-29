@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{debug, info, warn};
 
+use x509_parser::prelude::FromDer;
+
 use crate::error::{Result, SslError};
 
 /// Certificate information
@@ -21,11 +23,24 @@ pub struct CertificateInfo {
 }
 
 /// Certificate data structure
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Certificate {
     pub info: CertificateInfo,
     pub rustls_certificate: Option<rustls::pki_types::CertificateDer<'static>>,
     pub rustls_private_key: Option<rustls::pki_types::PrivateKeyDer<'static>>,
+}
+
+impl Clone for Certificate {
+    fn clone(&self) -> Self {
+        Self {
+            info: self.info.clone(),
+            rustls_certificate: self.rustls_certificate.clone(),
+            // For private key, we need to recreate it from the raw bytes
+            rustls_private_key: self.rustls_private_key.as_ref().map(|key| {
+                rustls::pki_types::PrivateKeyDer::try_from(key.secret_der().to_vec()).unwrap()
+            }),
+        }
+    }
 }
 
 /// In-memory certificate store
@@ -71,8 +86,16 @@ impl Certificate {
         let (_, cert) = x509_parser::certificate::X509Certificate::from_der(cert_der.contents())
             .map_err(|e| SslError::CertificateError(format!("Failed to parse X.509 certificate: {}", e)))?;
         
-        let issued_at = cert.validity.not_before.to_datetime();
-        let expires_at = cert.validity.not_after.to_datetime();
+        let issued_at = {
+            let offset_dt = cert.validity.not_before.to_datetime();
+            chrono::DateTime::from_timestamp(offset_dt.unix_timestamp(), 0)
+                .unwrap_or_else(|| chrono::Utc::now())
+        };
+        let expires_at = {
+            let offset_dt = cert.validity.not_after.to_datetime();
+            chrono::DateTime::from_timestamp(offset_dt.unix_timestamp(), 0)
+                .unwrap_or_else(|| chrono::Utc::now())
+        };
         let issuer = cert.issuer().to_string();
         let serial_number = cert.serial.to_str_radix(16);
         

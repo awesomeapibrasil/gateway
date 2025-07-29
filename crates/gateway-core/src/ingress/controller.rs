@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 use crate::config::IngressConfig;
-use crate::error::{GatewayError, Result};
+use crate::error::Result;
 use crate::ingress::{annotations::IngressAnnotations, resources::IngressResource};
 
 /// Ingress controller for managing Kubernetes ingress resources
@@ -40,7 +40,7 @@ impl IngressController {
     pub async fn initialize(&self) -> Result<()> {
         if !self.config.enabled {
             debug!("Ingress controller is disabled");
-            return Ok();
+            return Ok(());
         }
         
         info!("Initializing ingress controller");
@@ -77,7 +77,7 @@ impl IngressController {
         
         if !ingress.should_handle(&self.config.ingress_class) {
             debug!("Ignoring ingress {} - not for our class", ingress_id);
-            return Ok();
+            return Ok(());
         }
         
         info!("Handling ingress upsert: {}", ingress_id);

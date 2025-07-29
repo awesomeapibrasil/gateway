@@ -1,7 +1,7 @@
 use notify::{Event, RecursiveMode, Result as NotifyResult, Watcher};
 use std::path::Path;
 use std::sync::Arc;
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
 use crate::certificate::{Certificate, CertificateStore};
@@ -38,7 +38,7 @@ impl CertificateWatcher {
     pub async fn start_watching(&mut self) -> Result<()> {
         if !self.config.watch_external_updates {
             debug!("Certificate file watching is disabled");
-            return Ok();
+            return Ok(());
         }
         
         info!("Starting certificate file watcher");
@@ -69,8 +69,9 @@ impl CertificateWatcher {
     
     /// Process file system events
     pub async fn process_events(&mut self) -> Result<()> {
-        if let Some(ref mut receiver) = self.receiver {
-            while let Some(event_result) = receiver.recv().await {
+        if let Some(receiver) = self.receiver.take() {
+            let mut recv = receiver;
+            while let Some(event_result) = recv.recv().await {
                 match event_result {
                     Ok(event) => {
                         if let Err(e) = self.handle_file_event(event).await {
@@ -82,6 +83,7 @@ impl CertificateWatcher {
                     }
                 }
             }
+            self.receiver = Some(recv);
         }
         Ok(())
     }
@@ -186,7 +188,7 @@ impl CertificateWatcher {
     pub async fn start_renewal_process(&self) -> Result<()> {
         if !self.config.auto_reload {
             debug!("Automatic certificate renewal is disabled");
-            return Ok();
+            return Ok(());
         }
         
         info!("Starting certificate renewal process");

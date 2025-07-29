@@ -2,7 +2,7 @@ use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use reqwest::Client;
 use ring::{
     rand,
-    signature::{EcdsaKeyPair, ECDSA_P256_SHA256_FIXED_SIGNING},
+    signature::{EcdsaKeyPair, KeyPair, ECDSA_P256_SHA256_FIXED_SIGNING},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -116,7 +116,7 @@ impl AcmeClient {
         let pkcs8_bytes = EcdsaKeyPair::generate_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, &rng)
             .map_err(|e| SslError::AcmeError(format!("Failed to generate key pair: {:?}", e)))?;
         
-        let key_pair = EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, pkcs8_bytes.as_ref())
+        let key_pair = EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, pkcs8_bytes.as_ref(), &rng)
             .map_err(|e| SslError::AcmeError(format!("Failed to create key pair: {:?}", e)))?;
         
         Ok(Self {

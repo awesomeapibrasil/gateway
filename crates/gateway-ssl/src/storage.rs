@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use std::collections::HashMap;
 use tracing::{debug, info, warn};
 
 use crate::certificate::CertificateInfo;
@@ -28,6 +27,7 @@ pub trait CertificateStorage: Send + Sync {
 
 /// Database storage backend
 pub struct DatabaseStorage {
+    #[allow(dead_code)]
     database: DatabaseManager,
 }
 

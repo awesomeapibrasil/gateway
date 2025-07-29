@@ -179,6 +179,62 @@ config:
       timeout: "60s"
       half_open_max_calls: 3
 
+  # SSL/TLS Auto-provisioning configuration
+  ssl:
+    enabled: true
+    auto_ssl:
+      enabled: true
+      domains: []
+      email: ""
+      staging: true
+      renewal_threshold_days: 30
+      challenge_type: "http-01"
+      challenge_port: 80
+    certificate:
+      storage_backend: "database"
+      cache_directory: "/etc/gateway/certificates"
+      watch_external_updates: true
+      auto_reload: true
+      reload_interval: "300s"
+    vault:
+      address: ""
+      token: ""
+      mount_path: "secret"
+      certificate_path: "certificates"
+      skip_verify: false
+      timeout: "30s"
+      auth_method:
+        method_type: "token"
+        config: {}
+    acme:
+      directory_url: "https://acme-staging-v02.api.letsencrypt.org/directory"
+      contact_email: ""
+      terms_of_service_agreed: false
+      key_type: "ecdsa256"
+      challenge_timeout: "300s"
+      propagation_timeout: "120s"
+      dns_providers: {}
+
+  # Ingress Controller configuration
+  ingressController:
+    enabled: false
+    namespace: null
+    ingress_class: "gateway"
+    watch_all_namespaces: true
+    default_backend_protocol: "http"
+    default_ssl_redirect: false
+    annotations:
+      backend_protocol: "gateway.io/backend-protocol"
+      ssl_redirect: "gateway.io/ssl-redirect"
+      rate_limit: "gateway.io/rate-limit"
+      auth_type: "gateway.io/auth-type"
+      plugins: "gateway.io/plugins"
+      upstream_timeout: "gateway.io/upstream-timeout"
+      load_balancer: "gateway.io/load-balancer"
+      circuit_breaker: "gateway.io/circuit-breaker"
+      cors: "gateway.io/cors"
+      compression: "gateway.io/compression"
+
 # Persistence for logs and data
 persistence:
   enabled: false
@@ -214,6 +270,19 @@ rbac:
     - apiGroups: [""]
       resources: ["configmaps", "secrets"]
       verbs: ["get", "list", "watch"]
+    # Ingress controller permissions
+    - apiGroups: ["networking.k8s.io"]
+      resources: ["ingresses"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["networking.k8s.io"]
+      resources: ["ingresses/status"]
+      verbs: ["update"]
+    - apiGroups: [""]
+      resources: ["services", "endpoints"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: [""]
+      resources: ["events"]
+      verbs: ["create", "patch"]
 
 # Network policies
 networkPolicy:
