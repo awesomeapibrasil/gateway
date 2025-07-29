@@ -110,8 +110,12 @@ exceptions = [
     # Each entry is the crate and version constraint, and its specific allow
     # list
     #{ allow = ["Zlib"], crate = "adler32" },
+    { allow = ["ISC", "Apache-2.0", "OpenSSL"], crate = "aws-lc-sys" },
 ]
 
+# Some crates don't have (easily) machine readable licensing information,
+# adding a clarification entry for it allows you to manually specify the
+# licensing information
 # Some crates don't have (easily) machine readable licensing information,
 # adding a clarification entry for it allows you to manually specify the
 # licensing information
