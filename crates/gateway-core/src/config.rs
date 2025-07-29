@@ -131,16 +131,16 @@ pub struct IngressConfig {
 /// Ingress annotations configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IngressAnnotationsConfig {
-    pub backend_protocol: String,          // "gateway.io/backend-protocol"
-    pub ssl_redirect: String,              // "gateway.io/ssl-redirect"
-    pub rate_limit: String,                // "gateway.io/rate-limit"
-    pub auth_type: String,                 // "gateway.io/auth-type"
-    pub plugins: String,                   // "gateway.io/plugins"
-    pub upstream_timeout: String,          // "gateway.io/upstream-timeout"
-    pub load_balancer: String,             // "gateway.io/load-balancer"
-    pub circuit_breaker: String,           // "gateway.io/circuit-breaker"
-    pub cors: String,                      // "gateway.io/cors"
-    pub compression: String,               // "gateway.io/compression"
+    pub backend_protocol: String, // "gateway.io/backend-protocol"
+    pub ssl_redirect: String,     // "gateway.io/ssl-redirect"
+    pub rate_limit: String,       // "gateway.io/rate-limit"
+    pub auth_type: String,        // "gateway.io/auth-type"
+    pub plugins: String,          // "gateway.io/plugins"
+    pub upstream_timeout: String, // "gateway.io/upstream-timeout"
+    pub load_balancer: String,    // "gateway.io/load-balancer"
+    pub circuit_breaker: String,  // "gateway.io/circuit-breaker"
+    pub cors: String,             // "gateway.io/cors"
+    pub compression: String,      // "gateway.io/compression"
 }
 
 /// WAF configuration

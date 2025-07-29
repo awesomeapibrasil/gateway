@@ -15,8 +15,8 @@ pub mod storage;
 pub mod watcher;
 
 pub use certificate::{Certificate, CertificateInfo, CertificateStore};
-pub use config::{SslConfig, AcmeConfig, VaultConfig, CertificateConfig};
-pub use error::{SslError, Result};
+pub use config::{AcmeConfig, CertificateConfig, SslConfig, VaultConfig};
+pub use error::{Result, SslError};
 pub use manager::SslManager;
 pub use storage::{CertificateStorage, DatabaseStorage, VaultStorage};
 pub use watcher::CertificateWatcher;
@@ -32,12 +32,12 @@ static SSL_MANAGER: once_cell::sync::Lazy<Arc<RwLock<Option<SslManager>>>> =
 /// Initialize the SSL manager with the given configuration
 pub async fn init_ssl_manager(config: SslConfig) -> Result<()> {
     info!("Initializing SSL manager");
-    
+
     let manager = SslManager::new(config).await?;
-    
+
     let mut instance = SSL_MANAGER.write().await;
     *instance = Some(manager);
-    
+
     info!("SSL manager initialized successfully");
     Ok(())
 }

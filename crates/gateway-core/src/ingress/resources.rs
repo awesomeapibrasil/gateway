@@ -129,46 +129,46 @@ impl IngressResource {
                 .unwrap_or(false)
         }
     }
-    
+
     /// Get all hosts from the ingress
     pub fn get_hosts(&self) -> Vec<String> {
         let mut hosts = Vec::new();
-        
+
         // Collect hosts from rules
         for rule in &self.spec.rules {
             if let Some(host) = &rule.host {
                 hosts.push(host.clone());
             }
         }
-        
+
         // Collect hosts from TLS configuration
         for tls in &self.spec.tls {
             hosts.extend(tls.hosts.clone());
         }
-        
+
         hosts.sort();
         hosts.dedup();
         hosts
     }
-    
+
     /// Get TLS hosts that need certificates
     pub fn get_tls_hosts(&self) -> Vec<String> {
         let mut hosts = Vec::new();
-        
+
         for tls in &self.spec.tls {
             hosts.extend(tls.hosts.clone());
         }
-        
+
         hosts.sort();
         hosts.dedup();
         hosts
     }
-    
+
     /// Check if the ingress has TLS configuration
     pub fn has_tls(&self) -> bool {
         !self.spec.tls.is_empty()
     }
-    
+
     /// Get unique identifier for the ingress
     pub fn get_id(&self) -> String {
         format!("{}/{}", self.metadata.namespace, self.metadata.name)
@@ -209,8 +209,8 @@ impl IngressPath {
 impl IngressBackend {
     /// Get the backend service name and port
     pub fn get_service_info(&self) -> Option<(String, Option<u16>)> {
-        self.service.as_ref().map(|svc| {
-            (svc.name.clone(), svc.port.number)
-        })
+        self.service
+            .as_ref()
+            .map(|svc| (svc.name.clone(), svc.port.number))
     }
 }

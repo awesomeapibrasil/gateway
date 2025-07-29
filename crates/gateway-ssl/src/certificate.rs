@@ -54,13 +54,13 @@ impl CertificateInfo {
     pub fn is_expired(&self) -> bool {
         Utc::now() > self.expires_at
     }
-    
+
     /// Check if the certificate needs renewal (within threshold days)
     pub fn needs_renewal(&self, threshold_days: u32) -> bool {
         let threshold = chrono::Duration::days(threshold_days as i64);
         Utc::now() + threshold > self.expires_at
     }
-    
+
     /// Get the remaining days before expiration
     pub fn days_until_expiry(&self) -> i64 {
         let duration = self.expires_at - Utc::now();
@@ -76,29 +76,33 @@ impl Certificate {
         key_pem: &str,
         chain_pem: Option<&str>,
     ) -> Result<Self> {
-        let cert_der = pem::parse(cert_pem)
-            .map_err(|e| SslError::CertificateError(format!("Failed to parse certificate PEM: {}", e)))?;
-        
-        let key_der = pem::parse(key_pem)
-            .map_err(|e| SslError::CertificateError(format!("Failed to parse private key PEM: {}", e)))?;
-        
+        let cert_der = pem::parse(cert_pem).map_err(|e| {
+            SslError::CertificateError(format!("Failed to parse certificate PEM: {e}"))
+        })?;
+
+        let key_der = pem::parse(key_pem).map_err(|e| {
+            SslError::CertificateError(format!("Failed to parse private key PEM: {e}"))
+        })?;
+
         // Parse certificate to get metadata
         let (_, cert) = x509_parser::certificate::X509Certificate::from_der(cert_der.contents())
-            .map_err(|e| SslError::CertificateError(format!("Failed to parse X.509 certificate: {}", e)))?;
-        
+            .map_err(|e| {
+                SslError::CertificateError(format!("Failed to parse X.509 certificate: {e}"))
+            })?;
+
         let issued_at = {
             let offset_dt = cert.validity.not_before.to_datetime();
             chrono::DateTime::from_timestamp(offset_dt.unix_timestamp(), 0)
-                .unwrap_or_else(|| chrono::Utc::now())
+                .unwrap_or_else(chrono::Utc::now)
         };
         let expires_at = {
             let offset_dt = cert.validity.not_after.to_datetime();
             chrono::DateTime::from_timestamp(offset_dt.unix_timestamp(), 0)
-                .unwrap_or_else(|| chrono::Utc::now())
+                .unwrap_or_else(chrono::Utc::now)
         };
         let issuer = cert.issuer().to_string();
         let serial_number = cert.serial.to_str_radix(16);
-        
+
         // Generate fingerprint (SHA-256)
         let fingerprint = {
             use sha2::{Digest, Sha256};
@@ -106,15 +110,22 @@ impl Certificate {
             hasher.update(cert_der.contents());
             format!("{:x}", hasher.finalize())
         };
-        
+
         let chain_der = if let Some(chain) = chain_pem {
-            Some(pem::parse(chain)
-                .map_err(|e| SslError::CertificateError(format!("Failed to parse certificate chain PEM: {}", e)))?
-                .contents().to_vec())
+            Some(
+                pem::parse(chain)
+                    .map_err(|e| {
+                        SslError::CertificateError(format!(
+                            "Failed to parse certificate chain PEM: {e}"
+                        ))
+                    })?
+                    .contents()
+                    .to_vec(),
+            )
         } else {
             None
         };
-        
+
         let info = CertificateInfo {
             domain,
             certificate: cert_der.contents().to_vec(),
@@ -126,31 +137,36 @@ impl Certificate {
             serial_number,
             fingerprint,
         };
-        
+
         // Create Rustls objects
-        let rustls_certificate = Some(rustls::pki_types::CertificateDer::from(cert_der.contents().to_vec()));
-        let rustls_private_key = Some(rustls::pki_types::PrivateKeyDer::try_from(key_der.contents().to_vec())
-            .map_err(|e| SslError::CertificateError(format!("Failed to create Rustls private key: {:?}", e)))?);
-        
+        let rustls_certificate = Some(rustls::pki_types::CertificateDer::from(
+            cert_der.contents().to_vec(),
+        ));
+        let rustls_private_key = Some(
+            rustls::pki_types::PrivateKeyDer::try_from(key_der.contents().to_vec()).map_err(
+                |e| {
+                    SslError::CertificateError(format!(
+                        "Failed to create Rustls private key: {e:?}"
+                    ))
+                },
+            )?,
+        );
+
         Ok(Certificate {
             info,
             rustls_certificate,
             rustls_private_key,
         })
     }
-    
+
     /// Convert certificate to PEM format
     pub fn to_pem(&self) -> Result<(String, String, Option<String>)> {
         let cert_pem = pem::encode(&pem::Pem::new("CERTIFICATE", self.info.certificate.clone()));
-        
+
         let key_pem = pem::encode(&pem::Pem::new("PRIVATE KEY", self.info.private_key.clone()));
-        
-        let chain_pem = if let Some(chain) = &self.info.certificate_chain {
-            Some(pem::encode(&pem::Pem::new("CERTIFICATE", chain.clone())))
-        } else {
-            None
-        };
-        
+
+        let chain_pem = self.info.certificate_chain.as_ref().map(|chain| pem::encode(&pem::Pem::new("CERTIFICATE", chain.clone())));
+
         Ok((cert_pem, key_pem, chain_pem))
     }
 }
@@ -162,29 +178,34 @@ impl CertificateStore {
             certificates: Arc::new(DashMap::new()),
         }
     }
-    
+
     /// Add a certificate to the store
     pub fn insert(&self, domain: &str, certificate: Certificate) {
         info!("Adding certificate for domain: {}", domain);
         self.certificates.insert(domain.to_string(), certificate);
     }
-    
+
     /// Get a certificate by domain
     pub fn get(&self, domain: &str) -> Option<Certificate> {
-        self.certificates.get(domain).map(|entry| entry.value().clone())
+        self.certificates
+            .get(domain)
+            .map(|entry| entry.value().clone())
     }
-    
+
     /// Remove a certificate from the store
     pub fn remove(&self, domain: &str) -> Option<Certificate> {
         debug!("Removing certificate for domain: {}", domain);
         self.certificates.remove(domain).map(|(_, cert)| cert)
     }
-    
+
     /// List all domains in the store
     pub fn domains(&self) -> Vec<String> {
-        self.certificates.iter().map(|entry| entry.key().clone()).collect()
+        self.certificates
+            .iter()
+            .map(|entry| entry.key().clone())
+            .collect()
     }
-    
+
     /// Get certificates that need renewal
     pub fn certificates_needing_renewal(&self, threshold_days: u32) -> Vec<String> {
         self.certificates
@@ -193,7 +214,7 @@ impl CertificateStore {
             .map(|entry| entry.key().clone())
             .collect()
     }
-    
+
     /// Get expired certificates
     pub fn expired_certificates(&self) -> Vec<String> {
         self.certificates
@@ -202,28 +223,31 @@ impl CertificateStore {
             .map(|entry| entry.key().clone())
             .collect()
     }
-    
+
     /// Update a certificate in the store
     pub fn update(&self, domain: &str, certificate: Certificate) {
         if self.certificates.contains_key(domain) {
             info!("Updating certificate for domain: {}", domain);
             self.certificates.insert(domain.to_string(), certificate);
         } else {
-            warn!("Attempted to update non-existent certificate for domain: {}", domain);
+            warn!(
+                "Attempted to update non-existent certificate for domain: {}",
+                domain
+            );
         }
     }
-    
+
     /// Clear all certificates
     pub fn clear(&self) {
         debug!("Clearing all certificates from store");
         self.certificates.clear();
     }
-    
+
     /// Get certificate count
     pub fn len(&self) -> usize {
         self.certificates.len()
     }
-    
+
     /// Check if store is empty
     pub fn is_empty(&self) -> bool {
         self.certificates.is_empty()

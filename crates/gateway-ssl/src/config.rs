@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 /// SSL configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SslConfig {
     pub enabled: bool,
     pub auto_ssl: AutoSslConfig,
@@ -75,17 +75,6 @@ pub struct DnsProviderConfig {
     pub config: HashMap<String, String>,
 }
 
-impl Default for SslConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            auto_ssl: AutoSslConfig::default(),
-            certificate: CertificateConfig::default(),
-            vault: None,
-            acme: AcmeConfig::default(),
-        }
-    }
-}
 
 impl Default for AutoSslConfig {
     fn default() -> Self {

@@ -89,9 +89,12 @@ impl IngressAnnotations {
         annotations: HashMap<String, String>,
         config: crate::config::IngressAnnotationsConfig,
     ) -> Self {
-        Self { annotations, config }
+        Self {
+            annotations,
+            config,
+        }
     }
-    
+
     /// Get backend protocol
     pub fn get_backend_protocol(&self) -> BackendProtocol {
         self.annotations
@@ -107,7 +110,7 @@ impl IngressAnnotations {
             })
             .unwrap_or(BackendProtocol::Http)
     }
-    
+
     /// Check if SSL redirect is enabled
     pub fn is_ssl_redirect_enabled(&self) -> bool {
         self.annotations
@@ -115,21 +118,21 @@ impl IngressAnnotations {
             .map(|v| v.to_lowercase() == "true")
             .unwrap_or(false)
     }
-    
+
     /// Get rate limit configuration
     pub fn get_rate_limit(&self) -> Option<RateLimitAnnotation> {
         self.annotations
             .get(&self.config.rate_limit)
             .and_then(|v| serde_json::from_str(v).ok())
     }
-    
+
     /// Get authentication configuration
     pub fn get_auth(&self) -> Option<AuthAnnotation> {
         self.annotations
             .get(&self.config.auth_type)
             .and_then(|v| serde_json::from_str(v).ok())
     }
-    
+
     /// Get plugins configuration
     pub fn get_plugins(&self) -> Vec<PluginAnnotation> {
         self.annotations
@@ -137,7 +140,7 @@ impl IngressAnnotations {
             .and_then(|v| serde_json::from_str(v).ok())
             .unwrap_or_default()
     }
-    
+
     /// Get upstream timeout
     pub fn get_upstream_timeout(&self) -> Option<Duration> {
         self.annotations
@@ -145,45 +148,45 @@ impl IngressAnnotations {
             .and_then(|v| v.parse::<u64>().ok())
             .map(Duration::from_secs)
     }
-    
+
     /// Get load balancer configuration
     pub fn get_load_balancer(&self) -> Option<LoadBalancerAnnotation> {
         self.annotations
             .get(&self.config.load_balancer)
             .and_then(|v| serde_json::from_str(v).ok())
     }
-    
+
     /// Get circuit breaker configuration
     pub fn get_circuit_breaker(&self) -> Option<CircuitBreakerAnnotation> {
         self.annotations
             .get(&self.config.circuit_breaker)
             .and_then(|v| serde_json::from_str(v).ok())
     }
-    
+
     /// Get CORS configuration
     pub fn get_cors(&self) -> Option<CorsAnnotation> {
         self.annotations
             .get(&self.config.cors)
             .and_then(|v| serde_json::from_str(v).ok())
     }
-    
+
     /// Get compression configuration
     pub fn get_compression(&self) -> Option<CompressionAnnotation> {
         self.annotations
             .get(&self.config.compression)
             .and_then(|v| serde_json::from_str(v).ok())
     }
-    
+
     /// Get custom annotation value
     pub fn get_custom(&self, key: &str) -> Option<&String> {
         self.annotations.get(key)
     }
-    
+
     /// Check if annotation exists
     pub fn has_annotation(&self, key: &str) -> bool {
         self.annotations.contains_key(key)
     }
-    
+
     /// Get all annotations
     pub fn get_all(&self) -> &HashMap<String, String> {
         &self.annotations
