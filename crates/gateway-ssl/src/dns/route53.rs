@@ -4,6 +4,7 @@ use std::env;
 use super::provider::{DnsError, DnsProvider, DnsRecord};
 
 /// AWS Route53 DNS provider for ACME DNS-01 challenges
+#[allow(dead_code)]
 pub struct Route53Provider {
     // AWS credentials and configuration
     access_key_id: String,

@@ -92,8 +92,7 @@ impl DnsProvider for CloudFlareProvider {
                 .await
                 .unwrap_or_else(|_| "Unknown error".to_string());
             Err(DnsError::ApiError(format!(
-                "CloudFlare API error: {}",
-                error_text
+                "CloudFlare API error: {error_text}"
             )))
         }
     }
@@ -120,7 +119,7 @@ impl DnsProvider for CloudFlareProvider {
         let list_data: serde_json::Value = list_response
             .json()
             .await
-            .map_err(|e| DnsError::ApiError(format!("Failed to parse response: {}", e)))?;
+            .map_err(|e| DnsError::ApiError(format!("Failed to parse response: {e}")))?;
 
         let records = list_data["result"]
             .as_array()
@@ -147,8 +146,7 @@ impl DnsProvider for CloudFlareProvider {
                         .await
                         .unwrap_or_else(|_| "Unknown error".to_string());
                     return Err(DnsError::ApiError(format!(
-                        "Failed to delete record: {}",
-                        error_text
+                        "Failed to delete record: {error_text}"
                     )));
                 }
             }

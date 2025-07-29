@@ -6,6 +6,7 @@ use std::env;
 use super::provider::{DnsError, DnsProvider, DnsRecord};
 
 /// Oracle Cloud DNS provider for ACME DNS-01 challenges
+#[allow(dead_code)]
 pub struct OracleDnsProvider {
     client: Client,
     tenancy_id: String,

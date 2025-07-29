@@ -115,8 +115,7 @@ impl AzureDnsProvider {
                 .await
                 .unwrap_or_else(|_| "Unknown error".to_string());
             return Err(DnsError::AuthenticationError(format!(
-                "Failed to get Azure access token: {}",
-                error_text
+                "Failed to get Azure access token: {error_text}"
             )));
         }
 
@@ -190,7 +189,7 @@ impl DnsProvider for AzureDnsProvider {
         let response = self
             .client
             .put(&url)
-            .header("Authorization", format!("Bearer {}", access_token))
+            .header("Authorization", format!("Bearer {access_token}"))
             .header("Content-Type", "application/json")
             .json(&record_data)
             .send()
@@ -205,8 +204,7 @@ impl DnsProvider for AzureDnsProvider {
                 .await
                 .unwrap_or_else(|_| "Unknown error".to_string());
             Err(DnsError::ApiError(format!(
-                "Azure DNS API error: {}",
-                error_text
+                "Azure DNS API error: {error_text}"
             )))
         }
     }
@@ -234,7 +232,7 @@ impl DnsProvider for AzureDnsProvider {
         let response = self
             .client
             .delete(&url)
-            .header("Authorization", format!("Bearer {}", access_token))
+            .header("Authorization", format!("Bearer {access_token}"))
             .send()
             .await
             .map_err(|e| DnsError::NetworkError(e.to_string()))?;
@@ -247,8 +245,7 @@ impl DnsProvider for AzureDnsProvider {
                 .await
                 .unwrap_or_else(|_| "Unknown error".to_string());
             Err(DnsError::ApiError(format!(
-                "Failed to delete Azure DNS record: {}",
-                error_text
+                "Failed to delete Azure DNS record: {error_text}"
             )))
         }
     }

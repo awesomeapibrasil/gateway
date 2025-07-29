@@ -557,8 +557,7 @@ impl AcmeClient {
         }
 
         Err(SslError::AcmeError(format!(
-            "All DNS providers failed to create TXT record for domain: {}",
-            domain
+            "All DNS providers failed to create TXT record for domain: {domain}"
         )))
     }
 

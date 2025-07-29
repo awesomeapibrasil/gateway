@@ -24,11 +24,11 @@ pub enum DnsError {
 impl fmt::Display for DnsError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            DnsError::ApiError(msg) => write!(f, "DNS API error: {}", msg),
-            DnsError::AuthenticationError(msg) => write!(f, "DNS authentication error: {}", msg),
-            DnsError::RecordNotFound(msg) => write!(f, "DNS record not found: {}", msg),
-            DnsError::NetworkError(msg) => write!(f, "DNS network error: {}", msg),
-            DnsError::ConfigurationError(msg) => write!(f, "DNS configuration error: {}", msg),
+            DnsError::ApiError(msg) => write!(f, "DNS API error: {msg}"),
+            DnsError::AuthenticationError(msg) => write!(f, "DNS authentication error: {msg}"),
+            DnsError::RecordNotFound(msg) => write!(f, "DNS record not found: {msg}"),
+            DnsError::NetworkError(msg) => write!(f, "DNS network error: {msg}"),
+            DnsError::ConfigurationError(msg) => write!(f, "DNS configuration error: {msg}"),
         }
     }
 }
@@ -123,8 +123,7 @@ impl DnsProviderFactory {
                 Ok(Box::new(provider))
             }
             _ => Err(DnsError::ConfigurationError(format!(
-                "Unknown DNS provider: {}",
-                provider_name
+                "Unknown DNS provider: {provider_name}"
             ))),
         }
     }
