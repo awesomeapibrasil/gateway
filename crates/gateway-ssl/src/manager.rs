@@ -1,3 +1,4 @@
+use rustls::ServerConfig;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
@@ -332,6 +333,93 @@ impl SslManager {
             &key_pem,
             chain_pem.as_deref(),
         )
+    }
+
+    /// Get certificate for a specific domain (SNI support)
+    pub fn get_certificate_for_domain(&self, domain: &str) -> Option<Certificate> {
+        // First try exact match
+        if let Some(cert) = self.store.get(domain) {
+            debug!("Found exact certificate match for domain: {}", domain);
+            return Some(cert);
+        }
+
+        // Try wildcard certificates
+        let wildcard_domain = domain.split('.').skip(1).collect::<Vec<_>>().join(".");
+        if !wildcard_domain.is_empty() {
+            let wildcard_pattern = format!("*.{wildcard_domain}");
+            if let Some(cert) = self.store.get(&wildcard_pattern) {
+                debug!(
+                    "Found wildcard certificate match for domain: {} using pattern: {}",
+                    domain, wildcard_pattern
+                );
+                return Some(cert);
+            }
+        }
+
+        debug!("No certificate found for domain: {}", domain);
+        None
+    }
+
+    /// Create rustls ServerConfig with SNI support
+    pub fn create_tls_config(&self) -> Result<Arc<ServerConfig>> {
+        debug!("Creating rustls ServerConfig with SNI support");
+
+        let cert_resolver = Arc::new(SniCertResolver::new(self.store.clone()));
+        let config = ServerConfig::builder()
+            .with_no_client_auth()
+            .with_cert_resolver(cert_resolver);
+
+        let mut config = config;
+        config.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
+
+        info!("Created rustls ServerConfig with SNI support");
+        Ok(Arc::new(config))
+    }
+}
+
+/// SNI Certificate Resolver for rustls
+#[derive(Debug)]
+pub struct SniCertResolver {
+    store: Arc<CertificateStore>,
+}
+
+impl SniCertResolver {
+    pub fn new(store: Arc<CertificateStore>) -> Self {
+        Self { store }
+    }
+}
+
+impl rustls::server::ResolvesServerCert for SniCertResolver {
+    fn resolve(
+        &self,
+        client_hello: rustls::server::ClientHello,
+    ) -> Option<Arc<rustls::sign::CertifiedKey>> {
+        let server_name = client_hello.server_name()?;
+        let domain = server_name;
+
+        debug!("SNI request for domain: {}", domain);
+
+        // First try exact match
+        if let Some(cert) = self.store.get(domain) {
+            debug!("Found exact certificate match for SNI domain: {}", domain);
+            return cert.to_rustls_certified_key().ok().map(Arc::new);
+        }
+
+        // Try wildcard certificates
+        let wildcard_domain = domain.split('.').skip(1).collect::<Vec<_>>().join(".");
+        if !wildcard_domain.is_empty() {
+            let wildcard_pattern = format!("*.{wildcard_domain}");
+            if let Some(cert) = self.store.get(&wildcard_pattern) {
+                debug!(
+                    "Found wildcard certificate match for SNI domain: {} using pattern: {}",
+                    domain, wildcard_pattern
+                );
+                return cert.to_rustls_certified_key().ok().map(Arc::new);
+            }
+        }
+
+        warn!("No certificate found for SNI domain: {}", domain);
+        None
     }
 }
 

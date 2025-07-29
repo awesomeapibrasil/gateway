@@ -159,6 +159,30 @@ impl Certificate {
         })
     }
 
+    /// Convert to rustls CertifiedKey for TLS usage
+    pub fn to_rustls_certified_key(&self) -> Result<rustls::sign::CertifiedKey> {
+        let cert_chain = if let Some(ref rustls_cert) = self.rustls_certificate {
+            vec![rustls_cert.clone()]
+        } else {
+            return Err(SslError::TlsError(
+                "No rustls certificate available".to_string(),
+            ));
+        };
+
+        let private_key = if let Some(ref rustls_key) = self.rustls_private_key {
+            rustls_key
+        } else {
+            return Err(SslError::TlsError(
+                "No rustls private key available".to_string(),
+            ));
+        };
+
+        let signing_key = rustls::crypto::ring::sign::any_supported_type(private_key)
+            .map_err(|e| SslError::TlsError(format!("Failed to create signing key: {e}")))?;
+
+        Ok(rustls::sign::CertifiedKey::new(cert_chain, signing_key))
+    }
+
     /// Convert certificate to PEM format
     pub fn to_pem(&self) -> Result<(String, String, Option<String>)> {
         let cert_pem = pem::encode(&pem::Pem::new("CERTIFICATE", self.info.certificate.clone()));
