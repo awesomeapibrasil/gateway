@@ -60,7 +60,6 @@ pub struct VaultAuthMethod {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AcmeConfig {
     pub directory_url: String,
-    pub contact_email: String,
     pub terms_of_service_agreed: bool,
     pub key_type: String, // "rsa2048", "rsa4096", "ecdsa256", "ecdsa384"
     pub challenge_timeout: Duration,
@@ -105,7 +104,6 @@ impl Default for AcmeConfig {
     fn default() -> Self {
         Self {
             directory_url: "https://acme-staging-v02.api.letsencrypt.org/directory".to_string(),
-            contact_email: String::new(),
             terms_of_service_agreed: false,
             key_type: "ecdsa256".to_string(),
             challenge_timeout: Duration::from_secs(300),

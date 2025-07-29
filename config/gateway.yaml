@@ -41,7 +41,6 @@ ssl:
       config: {}
   acme:
     directory_url: "https://acme-v02.api.letsencrypt.org/directory"
-    contact_email: "admin@example.com"
     terms_of_service_agreed: true
     key_type: "ecdsa256"
     challenge_timeout: "300s"

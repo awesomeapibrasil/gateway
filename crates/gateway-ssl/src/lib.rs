@@ -9,6 +9,7 @@
 pub mod acme;
 pub mod certificate;
 pub mod config;
+pub mod dns;
 pub mod error;
 pub mod manager;
 pub mod storage;
@@ -16,6 +17,7 @@ pub mod watcher;
 
 pub use certificate::{Certificate, CertificateInfo, CertificateStore};
 pub use config::{AcmeConfig, CertificateConfig, SslConfig, VaultConfig};
+pub use dns::{DnsError, DnsProvider, DnsRecord};
 pub use error::{Result, SslError};
 pub use manager::SslManager;
 pub use storage::{CertificateStorage, DatabaseStorage, VaultStorage};

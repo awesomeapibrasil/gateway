@@ -8,17 +8,19 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::{debug, info, warn};
 
+use crate::dns::provider::DnsProviderFactory;
+use crate::dns::{DnsProvider, DnsRecord};
 use crate::error::{Result, SslError};
 
 /// ACME client for automatic certificate provisioning
 pub struct AcmeClient {
     client: Client,
     directory_url: String,
-    contact_email: String,
     key_pair: EcdsaKeyPair,
     account_url: Option<String>,
     directory: Option<AcmeDirectory>,
     current_cert_key_pair: Option<bool>, // Simplified - just tracks if CSR was generated
+    dns_providers: Vec<Box<dyn DnsProvider>>,
 }
 
 /// ACME directory response
@@ -116,7 +118,7 @@ pub struct CertificateKeyPair {
 
 impl AcmeClient {
     /// Create a new ACME client
-    pub fn new(directory_url: String, contact_email: String) -> Result<Self> {
+    pub async fn new(directory_url: String) -> Result<Self> {
         let client = Client::new();
 
         // Generate ECDSA key pair for account
@@ -128,14 +130,24 @@ impl AcmeClient {
             EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, pkcs8_bytes.as_ref(), &rng)
                 .map_err(|e| SslError::AcmeError(format!("Failed to create key pair: {e:?}")))?;
 
+        // Auto-detect available DNS providers
+        let dns_providers = DnsProviderFactory::create_available_providers().await;
+
+        if dns_providers.is_empty() {
+            warn!("No DNS providers configured for ACME DNS-01 challenges");
+        } else {
+            let provider_names: Vec<_> = dns_providers.iter().map(|p| p.name()).collect();
+            info!("Available DNS providers: {:?}", provider_names);
+        }
+
         Ok(Self {
             client,
             directory_url,
-            contact_email,
             key_pair,
             account_url: None,
             directory: None,
             current_cert_key_pair: None,
+            dns_providers,
         })
     }
 
@@ -169,10 +181,10 @@ impl AcmeClient {
             .as_ref()
             .ok_or_else(|| SslError::AcmeError("ACME directory not initialized".to_string()))?;
 
-        info!("Creating ACME account for: {}", self.contact_email);
+        info!("Creating ACME account");
 
         let account = AcmeAccount {
-            contact: vec![format!("mailto:{}", self.contact_email)],
+            contact: vec![], // Let's Encrypt no longer requires contact email
             terms_of_service_agreed: terms_agreed,
         };
 
@@ -501,7 +513,7 @@ impl AcmeClient {
         Ok(URL_SAFE_NO_PAD.encode(hash))
     }
 
-    /// Update DNS TXT record for challenge (CloudFlare and Route53 support)
+    /// Update DNS TXT record for challenge using available DNS providers
     async fn update_dns_txt_record(
         &self,
         domain: &str,
@@ -510,81 +522,44 @@ impl AcmeClient {
     ) -> Result<()> {
         info!("Updating DNS TXT record: {} = {}", record_name, value);
 
-        // Try CloudFlare first (if CF_API_TOKEN environment variable is set)
-        if let Ok(cf_token) = std::env::var("CF_API_TOKEN") {
-            if let Ok(zone_id) = std::env::var("CF_ZONE_ID") {
-                return self
-                    .update_cloudflare_txt_record(&cf_token, &zone_id, record_name, value)
-                    .await;
+        if self.dns_providers.is_empty() {
+            return Err(SslError::AcmeError(
+                "No DNS providers configured. Please configure at least one DNS provider for ACME DNS-01 challenges".to_string()
+            ));
+        }
+
+        let record = DnsRecord {
+            name: record_name.to_string(),
+            record_type: "TXT".to_string(),
+            content: value.to_string(),
+            ttl: 120,
+        };
+
+        // Try each available DNS provider until one succeeds
+        for provider in &self.dns_providers {
+            match provider.create_txt_record(&record).await {
+                Ok(()) => {
+                    info!(
+                        "Successfully created DNS TXT record using {}",
+                        provider.name()
+                    );
+                    return Ok(());
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to create DNS record with {}: {}",
+                        provider.name(),
+                        e
+                    );
+                    continue;
+                }
             }
         }
 
-        // Try Route53 (if AWS credentials are available)
-        if std::env::var("AWS_ACCESS_KEY_ID").is_ok() {
-            return self
-                .update_route53_txt_record(domain, record_name, value)
-                .await;
-        }
-
-        Err(SslError::AcmeError("No DNS provider configured. Set CF_API_TOKEN/CF_ZONE_ID for CloudFlare or AWS credentials for Route53".to_string()))
-    }
-
-    /// Update CloudFlare DNS TXT record
-    async fn update_cloudflare_txt_record(
-        &self,
-        api_token: &str,
-        zone_id: &str,
-        record_name: &str,
-        value: &str,
-    ) -> Result<()> {
-        debug!("Updating CloudFlare DNS TXT record");
-
-        let url = format!("https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records");
-
-        let record_data = serde_json::json!({
-            "type": "TXT",
-            "name": record_name,
-            "content": value,
-            "ttl": 120
-        });
-
-        let response = self
-            .client
-            .post(&url)
-            .header("Authorization", format!("Bearer {api_token}"))
-            .header("Content-Type", "application/json")
-            .json(&record_data)
-            .send()
-            .await?;
-
-        if response.status().is_success() {
-            info!("Successfully updated CloudFlare DNS TXT record");
-            Ok(())
-        } else {
-            let error_text = response.text().await?;
-            Err(SslError::AcmeError(format!(
-                "CloudFlare DNS update failed: {error_text}"
-            )))
-        }
-    }
-
-    /// Update Route53 DNS TXT record
-    async fn update_route53_txt_record(
-        &self,
-        domain: &str,
-        record_name: &str,
-        value: &str,
-    ) -> Result<()> {
-        debug!("Updating Route53 DNS TXT record");
-
-        // This is a placeholder for Route53 integration
-        // In a real implementation, you would use the AWS SDK to update Route53 records
-        warn!("Route53 DNS update not fully implemented - placeholder");
-
-        info!("Would update Route53 record: {record_name} = {value} for domain: {domain}");
-
-        // For now, return success to allow the challenge to proceed
-        Ok(())
+        Err(SslError::AcmeError(format!(
+            "All DNS providers failed to create TXT record for domain: {}",
+            domain
+        )))
     }
 
     /// Notify ACME server that challenge is ready

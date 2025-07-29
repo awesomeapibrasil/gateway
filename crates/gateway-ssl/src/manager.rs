@@ -69,10 +69,7 @@ impl SslManager {
         // Initialize ACME client if auto-SSL is enabled
         let acme_client = if config.auto_ssl.enabled {
             info!("Initializing ACME client");
-            let mut client = AcmeClient::new(
-                config.acme.directory_url.clone(),
-                config.acme.contact_email.clone(),
-            )?;
+            let mut client = AcmeClient::new(config.acme.directory_url.clone()).await?;
             client.initialize().await?;
             client
                 .create_account(config.acme.terms_of_service_agreed)
