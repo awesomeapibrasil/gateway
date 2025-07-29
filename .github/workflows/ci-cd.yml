@@ -90,7 +90,7 @@ jobs:
       - uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: docker/Dockerfile
-          args: -D DL3008
+          args: --ignore DL3008
 
   build:
     name: Build and Push Docker Image
