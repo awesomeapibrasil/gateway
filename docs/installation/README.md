@@ -26,7 +26,7 @@ docker run -d \
   --name gateway \
   -p 8080:8080 \
   -p 9090:9090 \
-  gcr.io/your-project/gateway:latest
+  gcr.io/awesomeapibrasil/gateway:latest
 ```
 
 #### With Custom Configuration
@@ -43,7 +43,7 @@ docker run -d \
   -p 8080:8080 \
   -p 9090:9090 \
   -v $(pwd)/config:/app/config \
-  gcr.io/your-project/gateway:latest
+  gcr.io/awesomeapibrasil/gateway:latest
 ```
 
 #### Docker Compose
@@ -51,7 +51,7 @@ docker run -d \
 version: '3.8'
 services:
   gateway:
-    image: gcr.io/your-project/gateway:latest
+    image: gcr.io/awesomeapibrasil/gateway:latest
     ports:
       - "8080:8080"
       - "9090:9090"

@@ -258,26 +258,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Discussions**: [Community discussions](https://github.com/awesomeapibrasil/gateway/discussions)
 - **Documentation**: [Comprehensive guides and references](docs/)
 
-## 🗺️ Roadmap
-
-### v0.2.0
-- [ ] Full Pingora integration
-- [ ] Advanced WAF rules engine
-- [ ] GraphQL support
-- [ ] Service mesh integration
-
-### v0.3.0
-- [ ] AI-powered threat detection
-- [ ] Advanced caching strategies
-- [ ] Multi-cluster support
-- [ ] Enhanced observability
-
-### v1.0.0
-- [ ] Production stability
-- [ ] Enterprise features
-- [ ] Certified cloud integrations
-- [ ] Commercial support
-
 ## 🏆 Acknowledgments
 
 - **Cloudflare**: For the Pingora framework
@@ -286,4 +266,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-Built with ❤️ by the Gateway Team
+Built with ❤️ by AwesomeAPI
