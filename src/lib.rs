@@ -9,4 +9,5 @@ pub use gateway_core::*;
 pub use gateway_database;
 pub use gateway_monitoring;
 pub use gateway_plugins;
+pub use gateway_ssl;
 pub use gateway_waf;

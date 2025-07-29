@@ -11,6 +11,62 @@ server:
     key_path: "certs/server.key"
     require_client_cert: false
 
+ssl:
+  enabled: true
+  auto_ssl:
+    enabled: true
+    domains:
+      - "gateway.example.com"
+      - "*.api.example.com"
+    email: "admin@example.com"
+    staging: false
+    renewal_threshold_days: 30
+    challenge_type: "http-01"
+    challenge_port: 80
+  certificate:
+    storage_backend: "database"  # "database", "vault", "filesystem"
+    cache_directory: "/etc/gateway/certificates"
+    watch_external_updates: true
+    auto_reload: true
+    reload_interval: "300s"
+  vault:
+    address: "https://vault.example.com:8200"
+    token: "${VAULT_TOKEN}"
+    mount_path: "secret"
+    certificate_path: "certificates"
+    skip_verify: false
+    timeout: "30s"
+    auth_method:
+      method_type: "token"
+      config: {}
+  acme:
+    directory_url: "https://acme-v02.api.letsencrypt.org/directory"
+    contact_email: "admin@example.com"
+    terms_of_service_agreed: true
+    key_type: "ecdsa256"
+    challenge_timeout: "300s"
+    propagation_timeout: "120s"
+    dns_providers: {}
+
+ingress:
+  enabled: true
+  namespace: null  # Watch all namespaces if null
+  ingress_class: "gateway"
+  watch_all_namespaces: true
+  default_backend_protocol: "http"
+  default_ssl_redirect: false
+  annotations:
+    backend_protocol: "gateway.io/backend-protocol"
+    ssl_redirect: "gateway.io/ssl-redirect"
+    rate_limit: "gateway.io/rate-limit"
+    auth_type: "gateway.io/auth-type"
+    plugins: "gateway.io/plugins"
+    upstream_timeout: "gateway.io/upstream-timeout"
+    load_balancer: "gateway.io/load-balancer"
+    circuit_breaker: "gateway.io/circuit-breaker"
+    cors: "gateway.io/cors"
+    compression: "gateway.io/compression"
+
 waf:
   enabled: true
   rules_path: "config/waf-rules.yaml"
