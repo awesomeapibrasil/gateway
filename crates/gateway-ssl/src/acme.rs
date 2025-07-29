@@ -6,6 +6,7 @@ use ring::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 use tracing::{debug, info, warn};
 
 use crate::dns::provider::DnsProviderFactory;
@@ -19,8 +20,9 @@ pub struct AcmeClient {
     key_pair: EcdsaKeyPair,
     account_url: Option<String>,
     directory: Option<AcmeDirectory>,
-    current_cert_key_pair: Option<bool>, // Simplified - just tracks if CSR was generated
+    current_cert_key_pair: Option<Vec<u8>>, // Store the PKCS8 bytes of the certificate key pair
     dns_providers: Vec<Box<dyn DnsProvider>>,
+    http_challenges: HashMap<String, String>, // token -> key_authorization
 }
 
 /// ACME directory response
@@ -148,6 +150,7 @@ impl AcmeClient {
             directory: None,
             current_cert_key_pair: None,
             dns_providers,
+            http_challenges: HashMap::new(),
         })
     }
 
@@ -172,6 +175,11 @@ impl AcmeClient {
 
         info!("ACME directory fetched successfully");
         Ok(())
+    }
+
+    /// Get HTTP challenge response for serving by the gateway
+    pub fn get_http_challenge(&self, token: &str) -> Option<String> {
+        self.http_challenges.get(token).cloned()
     }
 
     /// Create a new ACME account
@@ -382,6 +390,7 @@ impl AcmeClient {
         let auth: AcmeAuthorization = response.json().await?;
 
         // Find supported challenge types and process them
+        let mut challenge_processed = false;
         for challenge in &auth.challenges {
             match challenge.challenge_type.as_str() {
                 "http-01" => {
@@ -390,6 +399,7 @@ impl AcmeClient {
                         auth.identifier
                     );
                     self.process_http01_challenge(challenge).await?;
+                    challenge_processed = true;
                     break;
                 }
                 "dns-01" => {
@@ -399,12 +409,24 @@ impl AcmeClient {
                     );
                     self.process_dns01_challenge(challenge, &auth.identifier)
                         .await?;
+                    challenge_processed = true;
                     break;
                 }
                 challenge_type => {
                     debug!("Unsupported challenge type: {}", challenge_type);
                 }
             }
+        }
+
+        if !challenge_processed {
+            return Err(SslError::AcmeError(format!(
+                "No supported challenge types found for domain: {}. Available: {:?}",
+                auth.identifier.value,
+                auth.challenges
+                    .iter()
+                    .map(|c| &c.challenge_type)
+                    .collect::<Vec<_>>()
+            )));
         }
 
         Ok(())
@@ -420,16 +442,26 @@ impl AcmeClient {
         // Create the key authorization
         let key_auth = self.create_key_authorization(&challenge.token)?;
 
-        // In a real implementation, you would:
-        // 1. Create a temporary HTTP server or endpoint
-        // 2. Serve the key authorization at /.well-known/acme-challenge/{token}
-        // 3. Notify ACME server that challenge is ready
+        // Set up HTTP challenge endpoint
+        let challenge_path = format!("/.well-known/acme-challenge/{}", challenge.token);
 
-        info!("HTTP-01 challenge key authorization: {}", key_auth);
-        warn!("HTTP-01 challenge setup - implement actual HTTP server endpoint");
+        info!(
+            "HTTP-01 challenge ready: {} -> {}",
+            challenge_path, key_auth
+        );
+
+        // Store the challenge response for the gateway to serve
+        self.http_challenges
+            .insert(challenge.token.clone(), key_auth);
+
+        // Give time for the challenge to be available
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
         // Notify ACME server that challenge is ready
         self.notify_challenge_ready(challenge).await?;
+
+        // Clean up the challenge
+        self.http_challenges.remove(&challenge.token);
 
         Ok(())
     }
@@ -640,14 +672,14 @@ impl AcmeClient {
 
         // Generate a new key pair for the certificate (separate from account key)
         let rng = ring::rand::SystemRandom::new();
-        let cert_key_pair = EcdsaKeyPair::generate_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, &rng)
+        let cert_key_pkcs8 = EcdsaKeyPair::generate_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, &rng)
             .map_err(|e| {
                 SslError::AcmeError(format!("Failed to generate certificate key pair: {e}"))
             })?;
 
         let cert_key_pair = EcdsaKeyPair::from_pkcs8(
             &ECDSA_P256_SHA256_FIXED_SIGNING,
-            cert_key_pair.as_ref(),
+            cert_key_pkcs8.as_ref(),
             &rng,
         )
         .map_err(|e| SslError::AcmeError(format!("Failed to parse certificate key pair: {e}")))?;
@@ -698,8 +730,8 @@ impl AcmeClient {
         // Convert to PEM format
         let csr_pem = pem::encode(&pem::Pem::new("CERTIFICATE REQUEST", full_csr));
 
-        // Track that we generated a CSR for this request
-        self.current_cert_key_pair = Some(true);
+        // Store the certificate key pair PKCS8 bytes for later use
+        self.current_cert_key_pair = Some(cert_key_pkcs8.as_ref().to_vec());
 
         // Base64 encode DER for ACME submission (ACME expects DER, not PEM)
         let parsed_pem = pem::parse(&csr_pem)
@@ -832,11 +864,10 @@ impl AcmeClient {
         debug!("Certificate downloaded successfully");
 
         // Extract the private key from the stored certificate generation
-        // For this simplified implementation, generate a basic private key
-        let private_key_pem = if self.current_cert_key_pair.is_some() {
-            // In a real implementation, this would be the private key that corresponds to the CSR
-            // For now, we'll generate a placeholder that represents a proper private key structure
-            String::from("-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC7VJTUt9Us8cKB\n[... truncated placeholder private key ...]\n-----END PRIVATE KEY-----\n")
+        let private_key_pem = if let Some(ref pkcs8_bytes) = self.current_cert_key_pair {
+            // Convert PKCS8 bytes to PEM format
+            let pem_key = pem::Pem::new("PRIVATE KEY", pkcs8_bytes.clone());
+            pem::encode(&pem_key)
         } else {
             return Err(SslError::AcmeError(
                 "No private key available for certificate".to_string(),

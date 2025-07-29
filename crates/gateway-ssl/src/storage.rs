@@ -3,7 +3,7 @@ use tracing::{debug, info, warn};
 
 use crate::certificate::CertificateInfo;
 use crate::config::VaultConfig;
-use crate::error::Result;
+use crate::error::{Result, SslError};
 use gateway_database::DatabaseManager;
 
 /// Trait for certificate storage backends
@@ -27,7 +27,6 @@ pub trait CertificateStorage: Send + Sync {
 
 /// Database storage backend
 pub struct DatabaseStorage {
-    #[allow(dead_code)]
     database: DatabaseManager,
 }
 
@@ -78,7 +77,15 @@ impl CertificateStorage for DatabaseStorage {
     async fn store_certificate(&self, domain: &str, _certificate: &CertificateInfo) -> Result<()> {
         info!("Storing certificate in database for domain: {}", domain);
 
-        // Simplified database storage - real implementation would use proper SQL
+        // Check database health before proceeding
+        if !self.database.is_healthy().await {
+            return Err(SslError::StorageError(
+                "Database is not healthy, cannot store certificate".to_string(),
+            ));
+        }
+
+        // Placeholder for actual SQL execution
+        // In a production implementation, this would execute SQL to store the certificate
         debug!("Certificate stored in database for domain: {}", domain);
 
         Ok(())
@@ -90,28 +97,60 @@ impl CertificateStorage for DatabaseStorage {
             domain
         );
 
-        // Simplified database retrieval - real implementation would use proper SQL
+        // Check database health before proceeding
+        if !self.database.is_healthy().await {
+            return Err(SslError::StorageError(
+                "Database is not healthy, cannot retrieve certificate".to_string(),
+            ));
+        }
+
+        // Placeholder for actual SQL execution
+        // In a production implementation, this would execute SQL to retrieve the certificate
         Ok(None)
     }
 
     async fn list_certificates(&self) -> Result<Vec<String>> {
         debug!("Listing all certificates from database");
 
-        // Simplified database listing - real implementation would use proper SQL
+        // Check database health before proceeding
+        if !self.database.is_healthy().await {
+            return Err(SslError::StorageError(
+                "Database is not healthy, cannot list certificates".to_string(),
+            ));
+        }
+
+        // Placeholder for actual SQL execution
+        // In a production implementation, this would execute SQL to list certificates
         Ok(Vec::new())
     }
 
     async fn delete_certificate(&self, domain: &str) -> Result<()> {
         info!("Deleting certificate from database for domain: {}", domain);
 
-        // Simplified database deletion - real implementation would use proper SQL
+        // Check database health before proceeding
+        if !self.database.is_healthy().await {
+            return Err(SslError::StorageError(
+                "Database is not healthy, cannot delete certificate".to_string(),
+            ));
+        }
+
+        // Placeholder for actual SQL execution
+        // In a production implementation, this would execute SQL to delete the certificate
         Ok(())
     }
 
     async fn update_certificate(&self, domain: &str, _certificate: &CertificateInfo) -> Result<()> {
         info!("Updating certificate in database for domain: {}", domain);
 
-        // Simplified database update - real implementation would use proper SQL
+        // Check database health before proceeding
+        if !self.database.is_healthy().await {
+            return Err(SslError::StorageError(
+                "Database is not healthy, cannot update certificate".to_string(),
+            ));
+        }
+
+        // Placeholder for actual SQL execution
+        // In a production implementation, this would execute SQL to update the certificate
         Ok(())
     }
 }

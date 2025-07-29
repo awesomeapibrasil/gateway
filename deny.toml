@@ -113,16 +113,7 @@ exceptions = [
     { allow = ["ISC", "Apache-2.0", "OpenSSL"], crate = "aws-lc-sys" },
 ]
 
-# Some crates don't have (easily) machine readable licensing information,
-# adding a clarification entry for it allows you to manually specify the
-# licensing information
-# when running the license check, otherwise the clarification will be ignored
-# and the crate will be checked normally, which may produce warnings or errors
-# depending on the rest of your configuration
-#license-files = [
-# Each entry is a crate relative path, and the (opaque) hash of its contents
-#{ path = "LICENSE", hash = 0xbd0eed23 }
-#]
+
 
 [licenses.private]
 # If true, ignores workspace crates that aren't published, or are only
