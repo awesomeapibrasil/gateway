@@ -19,6 +19,7 @@ pub enum DnsError {
     RecordNotFound(String),
     NetworkError(String),
     ConfigurationError(String),
+    ProviderError(String),
 }
 
 impl fmt::Display for DnsError {
@@ -29,6 +30,7 @@ impl fmt::Display for DnsError {
             DnsError::RecordNotFound(msg) => write!(f, "DNS record not found: {msg}"),
             DnsError::NetworkError(msg) => write!(f, "DNS network error: {msg}"),
             DnsError::ConfigurationError(msg) => write!(f, "DNS configuration error: {msg}"),
+            DnsError::ProviderError(msg) => write!(f, "DNS provider error: {msg}"),
         }
     }
 }

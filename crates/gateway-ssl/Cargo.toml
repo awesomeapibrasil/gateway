@@ -39,3 +39,7 @@ jsonwebtoken = { workspace = true }
 
 # Additional dependencies
 once_cell = { workspace = true }
+
+# AWS SDK for Route53 DNS provider
+aws-config = "1.0"
+aws-sdk-route53 = "1.0"
