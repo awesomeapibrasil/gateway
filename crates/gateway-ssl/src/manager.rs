@@ -321,7 +321,10 @@ impl SslManager {
 
         let key_pem = pem::encode(&pem::Pem::new("PRIVATE KEY", cert_info.private_key.clone()));
 
-        let chain_pem = cert_info.certificate_chain.as_ref().map(|chain| pem::encode(&pem::Pem::new("CERTIFICATE", chain.clone())));
+        let chain_pem = cert_info
+            .certificate_chain
+            .as_ref()
+            .map(|chain| pem::encode(&pem::Pem::new("CERTIFICATE", chain.clone())));
 
         Certificate::from_pem(
             cert_info.domain.clone(),

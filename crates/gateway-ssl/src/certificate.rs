@@ -165,7 +165,11 @@ impl Certificate {
 
         let key_pem = pem::encode(&pem::Pem::new("PRIVATE KEY", self.info.private_key.clone()));
 
-        let chain_pem = self.info.certificate_chain.as_ref().map(|chain| pem::encode(&pem::Pem::new("CERTIFICATE", chain.clone())));
+        let chain_pem = self
+            .info
+            .certificate_chain
+            .as_ref()
+            .map(|chain| pem::encode(&pem::Pem::new("CERTIFICATE", chain.clone())));
 
         Ok((cert_pem, key_pem, chain_pem))
     }

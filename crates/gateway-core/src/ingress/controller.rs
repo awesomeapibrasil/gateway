@@ -191,11 +191,13 @@ impl IngressController {
         let mut best_match_length = 0;
 
         for route in routes.values() {
-            if (route.host == host || route.host == "*") && path.starts_with(&route.path)
-                && route.path.len() > best_match_length {
-                    best_match = Some(route);
-                    best_match_length = route.path.len();
-                }
+            if (route.host == host || route.host == "*")
+                && path.starts_with(&route.path)
+                && route.path.len() > best_match_length
+            {
+                best_match = Some(route);
+                best_match_length = route.path.len();
+            }
         }
 
         best_match.cloned()

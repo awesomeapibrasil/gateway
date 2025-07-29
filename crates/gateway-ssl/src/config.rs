@@ -75,7 +75,6 @@ pub struct DnsProviderConfig {
     pub config: HashMap<String, String>,
 }
 
-
 impl Default for AutoSslConfig {
     fn default() -> Self {
         Self {
