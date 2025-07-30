@@ -1,8 +1,8 @@
 use async_trait::async_trait;
-use tracing::{debug, info, warn};
-use serde_json::{json, Value};
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use serde_json::json;
 use sqlx::Row;
+use tracing::{debug, info, warn};
 
 use crate::certificate::CertificateInfo;
 use crate::config::VaultConfig;
@@ -34,9 +34,11 @@ pub struct DatabaseStorage {
 }
 
 /// Vault storage backend
+#[allow(dead_code)]
 pub struct VaultStorage {
     mount_path: String,
     certificate_path: String,
+    #[allow(dead_code)]
     vault_config: VaultConfig,
 }
 
@@ -107,7 +109,7 @@ impl CertificateStorage for DatabaseStorage {
                     serial_number = EXCLUDED.serial_number,
                     fingerprint = EXCLUDED.fingerprint,
                     updated_at = NOW()
-                "#
+                "#,
             )
             .bind(domain)
             .bind(&certificate.certificate)
@@ -123,7 +125,10 @@ impl CertificateStorage for DatabaseStorage {
 
             match result {
                 Ok(_) => {
-                    info!("Successfully stored certificate in database for domain: {}", domain);
+                    info!(
+                        "Successfully stored certificate in database for domain: {}",
+                        domain
+                    );
                     Ok(())
                 }
                 Err(e) => {
@@ -134,7 +139,9 @@ impl CertificateStorage for DatabaseStorage {
             }
         } else {
             warn!("Database pool not available, cannot store certificate");
-            Err(SslError::StorageError("Database pool not available".to_string()))
+            Err(SslError::StorageError(
+                "Database pool not available".to_string(),
+            ))
         }
     }
 
@@ -160,7 +167,7 @@ impl CertificateStorage for DatabaseStorage {
                        issued_at, expires_at, issuer, serial_number, fingerprint
                 FROM ssl_certificates
                 WHERE domain = $1
-                "#
+                "#,
             )
             .bind(domain)
             .fetch_optional(pool)
@@ -177,12 +184,16 @@ impl CertificateStorage for DatabaseStorage {
                     let issuer: String = row.try_get("issuer")?;
                     let serial_number: String = row.try_get("serial_number")?;
                     let fingerprint: String = row.try_get("fingerprint")?;
-                    
+
                     let issued_at = chrono::DateTime::parse_from_rfc3339(&issued_at_str)
-                        .map_err(|e| SslError::StorageError(format!("Failed to parse issued_at: {}", e)))?
+                        .map_err(|e| {
+                            SslError::StorageError(format!("Failed to parse issued_at: {}", e))
+                        })?
                         .with_timezone(&chrono::Utc);
                     let expires_at = chrono::DateTime::parse_from_rfc3339(&expires_at_str)
-                        .map_err(|e| SslError::StorageError(format!("Failed to parse expires_at: {}", e)))?
+                        .map_err(|e| {
+                            SslError::StorageError(format!("Failed to parse expires_at: {}", e))
+                        })?
                         .with_timezone(&chrono::Utc);
 
                     let certificate_info = CertificateInfo {
@@ -196,7 +207,10 @@ impl CertificateStorage for DatabaseStorage {
                         serial_number,
                         fingerprint,
                     };
-                    debug!("Successfully retrieved certificate from database for domain: {}", domain);
+                    debug!(
+                        "Successfully retrieved certificate from database for domain: {}",
+                        domain
+                    );
                     Ok(Some(certificate_info))
                 }
                 Ok(None) => {
@@ -211,7 +225,9 @@ impl CertificateStorage for DatabaseStorage {
             }
         } else {
             warn!("Database pool not available, cannot retrieve certificate");
-            Err(SslError::StorageError("Database pool not available".to_string()))
+            Err(SslError::StorageError(
+                "Database pool not available".to_string(),
+            ))
         }
     }
 
@@ -239,7 +255,10 @@ impl CertificateStorage for DatabaseStorage {
                         let domain: String = row.try_get("domain")?;
                         domains.push(domain);
                     }
-                    debug!("Successfully listed {} certificates from database", domains.len());
+                    debug!(
+                        "Successfully listed {} certificates from database",
+                        domains.len()
+                    );
                     Ok(domains)
                 }
                 Err(e) => {
@@ -250,7 +269,9 @@ impl CertificateStorage for DatabaseStorage {
             }
         } else {
             warn!("Database pool not available, cannot list certificates");
-            Err(SslError::StorageError("Database pool not available".to_string()))
+            Err(SslError::StorageError(
+                "Database pool not available".to_string(),
+            ))
         }
     }
 
@@ -275,7 +296,10 @@ impl CertificateStorage for DatabaseStorage {
             match result {
                 Ok(result) => {
                     if result.rows_affected() > 0 {
-                        info!("Successfully deleted certificate from database for domain: {}", domain);
+                        info!(
+                            "Successfully deleted certificate from database for domain: {}",
+                            domain
+                        );
                     } else {
                         warn!("No certificate found to delete for domain: {}", domain);
                     }
@@ -289,7 +313,9 @@ impl CertificateStorage for DatabaseStorage {
             }
         } else {
             warn!("Database pool not available, cannot delete certificate");
-            Err(SslError::StorageError("Database pool not available".to_string()))
+            Err(SslError::StorageError(
+                "Database pool not available".to_string(),
+            ))
         }
     }
 
@@ -339,7 +365,7 @@ impl VaultStorage {
     async fn vault_operation(&self, operation: &str, _path: &str) -> Result<()> {
         // Log the operation that would be performed
         info!("Vault operation: {} at path: {}", operation, _path);
-        
+
         // In production, this would:
         // 1. Make HTTP requests to Vault API using authentication
         // 2. Handle Vault responses and errors
@@ -373,7 +399,10 @@ impl CertificateStorage for VaultStorage {
         // Use the vault operation helper (simplified implementation)
         match self.vault_operation("store", &path).await {
             Ok(_) => {
-                info!("Successfully stored certificate in Vault for domain: {}", domain);
+                info!(
+                    "Successfully stored certificate in Vault for domain: {}",
+                    domain
+                );
                 Ok(())
             }
             Err(e) => {
@@ -408,7 +437,7 @@ impl CertificateStorage for VaultStorage {
         debug!("Listing all certificates from Vault");
 
         let base_path = format!("{}/{}", self.mount_path, self.certificate_path);
-        
+
         // Use the vault operation helper (simplified implementation)
         match self.vault_operation("list", &base_path).await {
             Ok(_) => {
@@ -432,7 +461,10 @@ impl CertificateStorage for VaultStorage {
         // Use the vault operation helper (simplified implementation)
         match self.vault_operation("delete", &path).await {
             Ok(_) => {
-                info!("Successfully deleted certificate from Vault for domain: {}", domain);
+                info!(
+                    "Successfully deleted certificate from Vault for domain: {}",
+                    domain
+                );
                 Ok(())
             }
             Err(e) => {
