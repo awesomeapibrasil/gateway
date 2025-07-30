@@ -7,6 +7,7 @@ members = [
     "crates/gateway-auth",
     "crates/gateway-monitoring",
     "crates/gateway-plugins",
+    "crates/gateway-ssl",
 ]
 resolver = "2"
 
@@ -67,6 +68,17 @@ once_cell = "1.19"
 regex = "1.10"
 url = "2.5"
 chrono = { version = "0.4", features = ["serde"] }
+
+# Additional dependencies for SSL
+rustls = "0.23"
+rustls-webpki = "0.102"
+x509-parser = "0.16"
+pem = "3.0"
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+base64 = "0.22"
+sha2 = "0.10"
+hvac = "0.1"
+notify = "6.1"
 
 [profile.release]
 opt-level = 3

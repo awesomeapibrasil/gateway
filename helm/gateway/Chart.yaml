@@ -8,8 +8,8 @@ home: https://github.com/awesomeapibrasil/gateway
 sources:
   - https://github.com/awesomeapibrasil/gateway
 maintainers:
-  - name: Gateway Team
-    email: team@gateway.io
+  - name: AwesomeAPI Team
+    email: contato@awesomeapi.com.br
 keywords:
   - gateway
   - api

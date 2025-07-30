@@ -11,6 +11,61 @@ server:
     key_path: "certs/server.key"
     require_client_cert: false
 
+ssl:
+  enabled: true
+  auto_ssl:
+    enabled: true
+    domains:
+      - "gateway.example.com"
+      - "*.api.example.com"
+    email: "admin@example.com"
+    staging: false
+    renewal_threshold_days: 30
+    challenge_type: "http-01"
+    challenge_port: 80
+  certificate:
+    storage_backend: "database"  # "database", "vault", "filesystem"
+    cache_directory: "/etc/gateway/certificates"
+    watch_external_updates: true
+    auto_reload: true
+    reload_interval: "300s"
+  vault:
+    address: "https://vault.example.com:8200"
+    token: "${VAULT_TOKEN}"
+    mount_path: "secret"
+    certificate_path: "certificates"
+    skip_verify: false
+    timeout: "30s"
+    auth_method:
+      method_type: "token"
+      config: {}
+  acme:
+    directory_url: "https://acme-v02.api.letsencrypt.org/directory"
+    terms_of_service_agreed: true
+    key_type: "ecdsa256"
+    challenge_timeout: "300s"
+    propagation_timeout: "120s"
+    dns_providers: {}
+
+ingress:
+  enabled: true
+  namespace: null  # Watch all namespaces if null
+  ingress_class: "gateway"
+  watch_all_namespaces: true
+  default_backend_protocol: "http"
+  default_ssl_redirect: false
+  annotations:
+    backend_protocol: "gateway.awesomeapi.com.br/backend-protocol"
+    ssl_redirect: "gateway.awesomeapi.com.br/ssl-redirect"
+    rate_limit: "gateway.awesomeapi.com.br/rate-limit"
+    auth_type: "gateway.awesomeapi.com.br/auth-type"
+    plugins: "gateway.awesomeapi.com.br/plugins"
+    upstream_timeout: "gateway.awesomeapi.com.br/upstream-timeout"
+    load_balancer: "gateway.awesomeapi.com.br/load-balancer"
+    circuit_breaker: "gateway.awesomeapi.com.br/circuit-breaker"
+    cors: "gateway.awesomeapi.com.br/cors"
+    compression: "gateway.awesomeapi.com.br/compression"
+
 waf:
   enabled: true
   rules_path: "config/waf-rules.yaml"

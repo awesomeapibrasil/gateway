@@ -37,6 +37,7 @@ gateway-database = { path = "../gateway-database" }
 gateway-auth = { path = "../gateway-auth" }
 gateway-monitoring = { path = "../gateway-monitoring" }
 gateway-plugins = { path = "../gateway-plugins" }
+gateway-ssl = { path = "../gateway-ssl" }
 
 [[bin]]
 name = "gateway"

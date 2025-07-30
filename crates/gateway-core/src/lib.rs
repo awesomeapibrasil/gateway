@@ -11,6 +11,7 @@
 pub mod config;
 pub mod error;
 pub mod gateway;
+pub mod ingress;
 pub mod proxy;
 pub mod server;
 pub mod types;
@@ -18,6 +19,7 @@ pub mod types;
 pub use config::GatewayConfig;
 pub use error::{GatewayError, Result};
 pub use gateway::Gateway;
+pub use ingress::IngressController;
 pub use proxy::GatewayProxy;
 pub use server::GatewayServer;
 
