@@ -98,19 +98,23 @@ impl OracleDnsProvider {
         body: &str,
     ) -> Result<String, DnsError> {
         // Load the private key from file
-        let private_key_content = std::fs::read_to_string(&self.private_key_path)
-            .map_err(|e| DnsError::ConfigurationError(format!("Failed to read private key: {e}")))?;
-        
+        let private_key_content = std::fs::read_to_string(&self.private_key_path).map_err(|e| {
+            DnsError::ConfigurationError(format!("Failed to read private key: {e}"))
+        })?;
+
         // Parse the private key
-        let private_key = pem::parse(&private_key_content)
-            .map_err(|e| DnsError::ConfigurationError(format!("Failed to parse private key PEM: {e}")))?;
-            
+        let private_key = pem::parse(&private_key_content).map_err(|e| {
+            DnsError::ConfigurationError(format!("Failed to parse private key PEM: {e}"))
+        })?;
+
         // Create signing string according to Oracle Cloud specification
         let host = format!("dns.{}.oraclecloud.com", self.region);
-        let date = chrono::Utc::now().format("%a, %d %b %Y %H:%M:%S GMT").to_string();
+        let date = chrono::Utc::now()
+            .format("%a, %d %b %Y %H:%M:%S GMT")
+            .to_string();
         let content_length = body.len();
         let content_type = "application/json";
-        
+
         let signing_string = format!(
             "(request-target): {} {}\nhost: {}\ndate: {}\ncontent-type: {}\ncontent-length: {}",
             method.to_lowercase(),
@@ -120,7 +124,7 @@ impl OracleDnsProvider {
             content_type,
             content_length
         );
-        
+
         // For this implementation, we'll use a simplified signature approach
         // In production, you would use proper RSA-SHA256 signing with the actual private key
         use sha2::{Digest, Sha256};
@@ -129,9 +133,9 @@ impl OracleDnsProvider {
         hasher.update(private_key.contents());
         let signature_hash = hasher.finalize();
         let signature = BASE64.encode(signature_hash);
-        
+
         let key_id = format!("{}/{}/{}", self.tenancy_id, self.user_id, self.fingerprint);
-        
+
         Ok(format!(
             r#"Signature keyId="{key_id}",algorithm="rsa-sha256",headers="(request-target) host date content-type content-length",signature="{signature}""#
         ))
