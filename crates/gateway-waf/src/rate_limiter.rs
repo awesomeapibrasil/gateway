@@ -200,7 +200,7 @@ impl RateLimiter {
             .bind(&key_hash)
             .bind(&key_type)
             .bind(&key_value)
-            .bind(entry.requests as i32)
+            .bind(entry.requests as i64)
             .bind(window_start.to_rfc3339())
             .bind(last_request.to_rfc3339())
             .execute(pool)
