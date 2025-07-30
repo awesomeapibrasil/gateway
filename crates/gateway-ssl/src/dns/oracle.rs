@@ -229,8 +229,7 @@ impl DnsProvider for OracleDnsProvider {
                 .unwrap_or_else(|_| "Unknown error".to_string());
             tracing::error!("Oracle Cloud DNS API error: {}", error_text);
             Err(DnsError::ApiError(format!(
-                "Oracle Cloud DNS API error: {}",
-                error_text
+                "Oracle Cloud DNS API error: {error_text}"
             )))
         }
     }
@@ -272,8 +271,7 @@ impl DnsProvider for OracleDnsProvider {
                 .await
                 .unwrap_or_else(|_| "Unknown error".to_string());
             return Err(DnsError::ApiError(format!(
-                "Failed to get records for deletion: {}",
-                error_text
+                "Failed to get records for deletion: {error_text}"
             )));
         }
 
@@ -281,7 +279,7 @@ impl DnsProvider for OracleDnsProvider {
         let records: serde_json::Value = get_response
             .json()
             .await
-            .map_err(|e| DnsError::NetworkError(format!("Failed to parse response: {}", e)))?;
+            .map_err(|e| DnsError::NetworkError(format!("Failed to parse response: {e}")))?;
 
         // If records exist, delete them using patch with empty items
         if let Some(items) = records.get("items").and_then(|i| i.as_array()) {
@@ -333,8 +331,7 @@ impl DnsProvider for OracleDnsProvider {
                         .unwrap_or_else(|_| "Unknown error".to_string());
                     tracing::error!("Oracle Cloud DNS delete error: {}", error_text);
                     Err(DnsError::ApiError(format!(
-                        "Oracle Cloud DNS delete error: {}",
-                        error_text
+                        "Oracle Cloud DNS delete error: {error_text}"
                     )))
                 }
             } else {

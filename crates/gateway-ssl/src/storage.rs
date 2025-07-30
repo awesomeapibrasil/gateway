@@ -132,7 +132,7 @@ impl CertificateStorage for DatabaseStorage {
                     Ok(())
                 }
                 Err(e) => {
-                    let error_msg = format!("Failed to store certificate in database: {}", e);
+                    let error_msg = format!("Failed to store certificate in database: {e}");
                     warn!("{}", error_msg);
                     Err(SslError::StorageError(error_msg))
                 }
@@ -187,12 +187,12 @@ impl CertificateStorage for DatabaseStorage {
 
                     let issued_at = chrono::DateTime::parse_from_rfc3339(&issued_at_str)
                         .map_err(|e| {
-                            SslError::StorageError(format!("Failed to parse issued_at: {}", e))
+                            SslError::StorageError(format!("Failed to parse issued_at: {e}"))
                         })?
                         .with_timezone(&chrono::Utc);
                     let expires_at = chrono::DateTime::parse_from_rfc3339(&expires_at_str)
                         .map_err(|e| {
-                            SslError::StorageError(format!("Failed to parse expires_at: {}", e))
+                            SslError::StorageError(format!("Failed to parse expires_at: {e}"))
                         })?
                         .with_timezone(&chrono::Utc);
 
@@ -218,7 +218,7 @@ impl CertificateStorage for DatabaseStorage {
                     Ok(None)
                 }
                 Err(e) => {
-                    let error_msg = format!("Failed to retrieve certificate from database: {}", e);
+                    let error_msg = format!("Failed to retrieve certificate from database: {e}");
                     warn!("{}", error_msg);
                     Err(SslError::StorageError(error_msg))
                 }
@@ -262,7 +262,7 @@ impl CertificateStorage for DatabaseStorage {
                     Ok(domains)
                 }
                 Err(e) => {
-                    let error_msg = format!("Failed to list certificates from database: {}", e);
+                    let error_msg = format!("Failed to list certificates from database: {e}");
                     warn!("{}", error_msg);
                     Err(SslError::StorageError(error_msg))
                 }
@@ -306,7 +306,7 @@ impl CertificateStorage for DatabaseStorage {
                     Ok(())
                 }
                 Err(e) => {
-                    let error_msg = format!("Failed to delete certificate from database: {}", e);
+                    let error_msg = format!("Failed to delete certificate from database: {e}");
                     warn!("{}", error_msg);
                     Err(SslError::StorageError(error_msg))
                 }
@@ -406,7 +406,7 @@ impl CertificateStorage for VaultStorage {
                 Ok(())
             }
             Err(e) => {
-                let error_msg = format!("Failed to store certificate in Vault: {}", e);
+                let error_msg = format!("Failed to store certificate in Vault: {e}");
                 warn!("{}", error_msg);
                 Err(e)
             }
@@ -426,7 +426,7 @@ impl CertificateStorage for VaultStorage {
                 Ok(None)
             }
             Err(e) => {
-                let error_msg = format!("Failed to retrieve certificate from Vault: {}", e);
+                let error_msg = format!("Failed to retrieve certificate from Vault: {e}");
                 warn!("{}", error_msg);
                 Err(e)
             }
@@ -447,7 +447,7 @@ impl CertificateStorage for VaultStorage {
                 Ok(Vec::new())
             }
             Err(e) => {
-                let error_msg = format!("Failed to list certificates from Vault: {}", e);
+                let error_msg = format!("Failed to list certificates from Vault: {e}");
                 warn!("{}", error_msg);
                 Err(e)
             }
@@ -468,7 +468,7 @@ impl CertificateStorage for VaultStorage {
                 Ok(())
             }
             Err(e) => {
-                let error_msg = format!("Failed to delete certificate from Vault: {}", e);
+                let error_msg = format!("Failed to delete certificate from Vault: {e}");
                 warn!("{}", error_msg);
                 Err(e)
             }

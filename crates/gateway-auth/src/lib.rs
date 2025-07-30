@@ -89,7 +89,7 @@ impl AuthManager {
         let validation = Validation::new(Algorithm::HS256);
 
         decode::<serde_json::Value>(token, &key, &validation)
-            .map_err(|e| format!("JWT validation failed: {}", e))
+            .map_err(|e| format!("JWT validation failed: {e}"))
     }
 
     /// Generate JWT token for a user
@@ -117,7 +117,7 @@ impl AuthManager {
 
         let key = EncodingKey::from_secret(self.config.jwt_secret.as_ref());
         encode(&Header::default(), &token_claims, &key)
-            .map_err(|e| format!("JWT generation failed: {}", e))
+            .map_err(|e| format!("JWT generation failed: {e}"))
     }
 
     /// Verify user credentials against database
@@ -137,7 +137,7 @@ impl AuthManager {
                 Ok(Some(row)) => {
                     let user_id_str: String = row.try_get("id").map_err(|e| e.to_string())?;
                     let user_id = uuid::Uuid::parse_str(&user_id_str)
-                        .map_err(|e| format!("Invalid UUID format: {}", e))?;
+                        .map_err(|e| format!("Invalid UUID format: {e}"))?;
                     let password_hash: String =
                         row.try_get("password_hash").map_err(|e| e.to_string())?;
                     let active: bool = row.try_get("active").map_err(|e| e.to_string())?;
@@ -185,7 +185,7 @@ impl AuthManager {
     ) -> Result<uuid::Uuid, String> {
         // Hash the password
         let password_hash = bcrypt::hash(password, bcrypt::DEFAULT_COST)
-            .map_err(|e| format!("Password hashing failed: {}", e))?;
+            .map_err(|e| format!("Password hashing failed: {e}"))?;
 
         if let Some(pool) = self.database.get_pool() {
             let user_id = uuid::Uuid::new_v4();
@@ -211,7 +211,7 @@ impl AuthManager {
                 }
                 Err(e) => {
                     tracing::error!("Failed to create user: {}", e);
-                    Err(format!("User creation failed: {}", e))
+                    Err(format!("User creation failed: {e}"))
                 }
             }
         } else {
