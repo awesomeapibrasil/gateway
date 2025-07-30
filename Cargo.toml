@@ -37,7 +37,7 @@ tower = "0.5"
 tower-http = { version = "0.5", features = ["full"] }
 
 # Database drivers
-sqlx = { version = "=0.8.6", default-features = false, features = ["runtime-tokio-rustls", "migrate", "postgres", "sqlite"] }
+sqlx = { version = "=0.8.6", default-features = false, features = ["runtime-tokio-rustls", "migrate", "postgres", "sqlite", "any", "macros", "chrono", "uuid"] }
 mongodb = "3.2"
 aws-sdk-dynamodb = "1.86"
 redis = { version = "0.32", features = ["tokio-comp"] }

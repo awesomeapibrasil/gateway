@@ -41,6 +41,9 @@ pub enum SslError {
 
     #[error("File watcher error: {0}")]
     WatcherError(#[from] notify::Error),
+
+    #[error("Database error: {0}")]
+    DatabaseError(#[from] sqlx::Error),
 }
 
 /// Result type for SSL operations

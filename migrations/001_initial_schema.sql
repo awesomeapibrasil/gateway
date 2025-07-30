@@ -155,6 +155,27 @@ CREATE TABLE IF NOT EXISTS cache_entries (
 CREATE INDEX IF NOT EXISTS idx_cache_entries_expires_at ON cache_entries(expires_at);
 CREATE INDEX IF NOT EXISTS idx_cache_entries_last_accessed ON cache_entries(last_accessed);
 
+-- SSL certificates table
+CREATE TABLE IF NOT EXISTS ssl_certificates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    domain VARCHAR(255) NOT NULL UNIQUE,
+    certificate BYTEA NOT NULL,
+    private_key BYTEA NOT NULL,
+    certificate_chain BYTEA,
+    issued_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    issuer TEXT NOT NULL,
+    serial_number TEXT NOT NULL,
+    fingerprint VARCHAR(64) NOT NULL,
+    auto_renew BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ssl_certificates_domain ON ssl_certificates(domain);
+CREATE INDEX IF NOT EXISTS idx_ssl_certificates_expires_at ON ssl_certificates(expires_at);
+CREATE INDEX IF NOT EXISTS idx_ssl_certificates_fingerprint ON ssl_certificates(fingerprint);
+
 -- Circuit breaker states table
 CREATE TABLE IF NOT EXISTS circuit_breaker_states (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -183,4 +204,5 @@ CREATE TRIGGER update_rate_limit_entries_updated_at BEFORE UPDATE ON rate_limit_
 CREATE TRIGGER update_backend_health_updated_at BEFORE UPDATE ON backend_health FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_api_keys_updated_at BEFORE UPDATE ON api_keys FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_ssl_certificates_updated_at BEFORE UPDATE ON ssl_certificates FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_circuit_breaker_states_updated_at BEFORE UPDATE ON circuit_breaker_states FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
