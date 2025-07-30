@@ -31,8 +31,10 @@ pub struct RedisConfig {
 #[derive(Debug, Clone)]
 struct CacheEntry {
     data: Vec<u8>,
+    #[allow(dead_code)] // Kept for potential future use and debugging
     created_at: std::time::SystemTime,
     expires_at: std::time::SystemTime,
+    last_accessed: std::time::SystemTime,
     access_count: u64,
     compressed: bool,
 }
@@ -88,9 +90,10 @@ impl CacheManager {
             if entry.expires_at > std::time::SystemTime::now() {
                 debug!("Cache hit (memory) for key: {}", cache_key);
 
-                // Update access count
+                // Update access count and last accessed time
                 let mut entry_mut = entry.clone();
                 entry_mut.access_count += 1;
+                entry_mut.last_accessed = std::time::SystemTime::now();
                 self.memory_cache
                     .insert(cache_key.clone(), entry_mut.clone());
 
@@ -113,10 +116,12 @@ impl CacheManager {
                         debug!("Cache hit (Redis) for key: {}", cache_key);
 
                         // Store in memory cache for faster access
+                        let now = std::time::SystemTime::now();
                         let entry = CacheEntry {
                             data: data.clone(),
-                            created_at: std::time::SystemTime::now(),
-                            expires_at: std::time::SystemTime::now() + self.config.ttl,
+                            created_at: now,
+                            expires_at: now + self.config.ttl,
+                            last_accessed: now,
                             access_count: 1,
                             compressed: self.config.compression,
                         };
@@ -155,10 +160,12 @@ impl CacheManager {
                     debug!("Cache hit (database) for key: {}", cache_key);
 
                     // Store in memory and Redis for faster access
+                    let now = std::time::SystemTime::now();
                     let entry = CacheEntry {
                         data: data.clone(),
-                        created_at: std::time::SystemTime::now(),
-                        expires_at: std::time::SystemTime::now() + self.config.ttl,
+                        created_at: now,
+                        expires_at: now + self.config.ttl,
+                        last_accessed: now,
                         access_count: 1,
                         compressed,
                     };
@@ -212,6 +219,7 @@ impl CacheManager {
             data: final_data.clone(),
             created_at: now,
             expires_at,
+            last_accessed: now,
             access_count: 0,
             compressed,
         };
@@ -290,26 +298,26 @@ impl CacheManager {
         Ok(data.to_vec())
     }
 
-    /// Evict oldest entries when cache is full
+    /// Evict least recently used entries when cache is full
     async fn evict_oldest_entries(&self) {
-        let mut oldest_entries = Vec::new();
+        let mut lru_entries = Vec::new();
 
-        // Find entries to evict (oldest or least accessed)
+        // Find entries to evict based on last access time (LRU)
         for entry in self.memory_cache.iter() {
-            oldest_entries.push((entry.key().clone(), entry.value().created_at));
+            lru_entries.push((entry.key().clone(), entry.value().last_accessed));
         }
 
-        // Sort by creation time and remove oldest entries
-        oldest_entries.sort_by(|a, b| a.1.cmp(&b.1));
+        // Sort by last access time and remove least recently used entries
+        lru_entries.sort_by(|a, b| a.1.cmp(&b.1));
 
-        let to_remove = oldest_entries
+        let to_remove = lru_entries
             .len()
             .saturating_sub(self.config.max_size * 3 / 4);
-        for (key, _) in oldest_entries.into_iter().take(to_remove) {
+        for (key, _) in lru_entries.into_iter().take(to_remove) {
             self.memory_cache.remove(&key);
         }
 
-        debug!("Evicted {} cache entries", to_remove);
+        debug!("Evicted {} cache entries using LRU strategy", to_remove);
     }
 
     pub async fn is_healthy(&self) -> bool {
