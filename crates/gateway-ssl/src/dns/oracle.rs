@@ -198,13 +198,10 @@ impl DnsProvider for OracleDnsProvider {
             record.ttl
         );
 
-        // Note: This is a placeholder implementation
-        // In production, you would need to implement proper Oracle Cloud API signing
-        // and make the actual HTTP request:
-        /*
+        // Make the actual Oracle Cloud DNS API request
         let response = self.client
             .patch(&url)
-            .header("Authorization", auth_header)
+            .header("Authorization", _auth_header)
             .header("Content-Type", "application/json")
             .header("Host", format!("dns.{}.oraclecloud.com", self.region))
             .header("Date", chrono::Utc::now().format("%a, %d %b %Y %H:%M:%S GMT").to_string())
@@ -214,28 +211,91 @@ impl DnsProvider for OracleDnsProvider {
             .map_err(|e| DnsError::NetworkError(e.to_string()))?;
 
         if response.status().is_success() {
+            tracing::info!("Successfully created TXT record {} in Oracle Cloud DNS", record.name);
             Ok(())
         } else {
             let error_text = response.text().await
                 .unwrap_or_else(|_| "Unknown error".to_string());
+            tracing::error!("Oracle Cloud DNS API error: {}", error_text);
             Err(DnsError::ApiError(format!("Oracle Cloud DNS API error: {}", error_text)))
         }
-        */
-
-        // For development, simulate success
-        Ok(())
     }
 
     async fn delete_txt_record(&self, name: &str) -> Result<(), DnsError> {
-        tracing::info!("Oracle Cloud DNS: Would delete TXT record {}", name);
+        tracing::info!("Oracle Cloud DNS: Deleting TXT record {}", name);
 
-        // This is a placeholder implementation
-        // In production, you would:
-        // 1. List existing records to find the one to delete
-        // 2. Make a DELETE request to remove the specific record
-        // 3. Handle Oracle Cloud's authentication requirements
+        // First, get the current records to find the one to delete
+        let get_url = format!(
+            "https://dns.{}.oraclecloud.com/20180115/zones/{}/records?domain={}",
+            self.region, self.zone_name, name
+        );
 
-        Ok(())
+        let get_auth_header = self.generate_auth_header("GET", &format!("/20180115/zones/{}/records?domain={}", self.zone_name, name), "")?;
+
+        // Get existing records
+        let get_response = self.client
+            .get(&get_url)
+            .header("Authorization", get_auth_header)
+            .header("Host", format!("dns.{}.oraclecloud.com", self.region))
+            .header("Date", chrono::Utc::now().format("%a, %d %b %Y %H:%M:%S GMT").to_string())
+            .send()
+            .await
+            .map_err(|e| DnsError::NetworkError(e.to_string()))?;
+
+        if !get_response.status().is_success() {
+            let error_text = get_response.text().await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            return Err(DnsError::ApiError(format!("Failed to get records for deletion: {}", error_text)));
+        }
+
+        // Parse response to get the record ID or content for deletion
+        let records: serde_json::Value = get_response.json().await
+            .map_err(|e| DnsError::NetworkError(format!("Failed to parse response: {}", e)))?;
+
+        // If records exist, delete them using patch with empty items
+        if let Some(items) = records.get("items").and_then(|i| i.as_array()) {
+            if !items.is_empty() {
+                let delete_url = format!(
+                    "https://dns.{}.oraclecloud.com/20180115/zones/{}/records",
+                    self.region, self.zone_name
+                );
+
+                // Create delete payload by sending empty items for the domain
+                let delete_data = json!({
+                    "items": []
+                });
+
+                let body = delete_data.to_string();
+                let delete_auth_header = self.generate_auth_header("PATCH", &format!("/20180115/zones/{}/records", self.zone_name), &body)?;
+
+                let delete_response = self.client
+                    .patch(&delete_url)
+                    .header("Authorization", delete_auth_header)
+                    .header("Content-Type", "application/json")
+                    .header("Host", format!("dns.{}.oraclecloud.com", self.region))
+                    .header("Date", chrono::Utc::now().format("%a, %d %b %Y %H:%M:%S GMT").to_string())
+                    .body(body)
+                    .send()
+                    .await
+                    .map_err(|e| DnsError::NetworkError(e.to_string()))?;
+
+                if delete_response.status().is_success() {
+                    tracing::info!("Successfully deleted TXT record {} from Oracle Cloud DNS", name);
+                    Ok(())
+                } else {
+                    let error_text = delete_response.text().await
+                        .unwrap_or_else(|_| "Unknown error".to_string());
+                    tracing::error!("Oracle Cloud DNS delete error: {}", error_text);
+                    Err(DnsError::ApiError(format!("Oracle Cloud DNS delete error: {}", error_text)))
+                }
+            } else {
+                tracing::info!("No TXT record found to delete for {}", name);
+                Ok(())
+            }
+        } else {
+            tracing::info!("No TXT record found to delete for {}", name);
+            Ok(())
+        }
     }
 
     fn propagation_delay(&self) -> u64 {
