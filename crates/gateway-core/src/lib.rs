@@ -3,6 +3,37 @@
 //! This is the main library for the Pingora-based API Gateway, providing
 //! core functionality including proxy services, load balancing, and integration
 //! with WAF, caching, database, and monitoring components.
+//!
+//! # Pingora Integration
+//!
+//! This library now includes direct integration with Cloudflare's Pingora framework
+//! for high-performance networking. The `pingora_adapter` module provides the basic
+//! integration skeleton and can be extended for full production use.
+//!
+//! ## Usage
+//!
+//! ```rust,no_run
+//! use gateway_core::{GatewayConfig, pingora_adapter::PingoraGateway};
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let config = GatewayConfig::default();
+//!     let gateway = PingoraGateway::new(config).await?;
+//!     gateway.run_forever();
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ## Integration Status
+//!
+//! - ✅ Basic Pingora server initialization
+//! - ✅ Configuration structure foundation
+//! - 🚧 HTTP service integration (planned)
+//! - 🚧 Proxy service integration (planned)
+//! - 🚧 WAF processing integration (planned)
+//! - 🚧 Load balancing integration (planned)
+//! - 🚧 SSL/TLS integration (planned)
+//! - 🚧 Monitoring integration (planned)
 
 #![allow(clippy::uninlined_format_args)]
 #![allow(clippy::derivable_impls)]
@@ -12,6 +43,11 @@ pub mod config;
 pub mod error;
 pub mod gateway;
 pub mod ingress;
+pub mod pingora_adapter;
+pub mod pingora_config;
+pub mod pingora_proxy;
+pub mod pingora_service;
+pub mod pingora_ssl;
 pub mod proxy;
 pub mod server;
 pub mod types;
@@ -20,6 +56,7 @@ pub use config::GatewayConfig;
 pub use error::{GatewayError, Result};
 pub use gateway::Gateway;
 pub use ingress::IngressController;
+pub use pingora_adapter::PingoraGateway;
 pub use proxy::GatewayProxy;
 pub use server::GatewayServer;
 

@@ -5,11 +5,11 @@ edition = "2021"
 license = "MIT"
 
 [dependencies]
-# Note: Pingora dependencies commented out until publicly available
-# pingora = { workspace = true }
-# pingora-core = { workspace = true }
-# pingora-proxy = { workspace = true }
-# pingora-load-balancing = { workspace = true }
+# Pingora dependencies - now available for high-performance networking
+pingora = { workspace = true, features = ["lb", "proxy"] }
+pingora-core = { workspace = true }
+pingora-proxy = { workspace = true }
+pingora-load-balancing = { workspace = true }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 serde = { workspace = true }
@@ -29,6 +29,8 @@ dashmap = { workspace = true }
 once_cell = { workspace = true }
 url = { workspace = true }
 chrono = { workspace = true }
+bytes = "1.0"
+reqwest = { workspace = true }
 
 # Local dependencies
 gateway-waf = { path = "../gateway-waf" }
