@@ -9,7 +9,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
     build-essential \
+    cmake \
     && rm -rf /var/lib/apt/lists/*
+# Note: cmake is required for native dependencies like libz-ng-sys used by gateway-core
 
 # Create app directory
 WORKDIR /app
