@@ -8,6 +8,31 @@ The current Gateway implementation is a high-performance, monolithic service tha
 
 The proposed architecture introduces a **Worker Service** that operates alongside the main **Gateway Service**, each with distinct responsibilities and operational characteristics.
 
+## Inter-Service Communication
+
+### Communication Protocol
+
+The Gateway and Worker services communicate exclusively through **gRPC/gRPCS** (gRPC over TLS) for all inter-service operations:
+
+#### Protocol Benefits
+- **Performance**: Binary protocol with efficient serialization
+- **Type Safety**: Strongly typed service definitions with Protocol Buffers
+- **Streaming**: Support for bidirectional streaming for real-time updates
+- **Security**: Mandatory TLS encryption for all communications
+- **Service Discovery**: Built-in health checking and load balancing
+
+#### Communication Patterns
+- **Certificate Updates**: Worker → Gateway (unary calls for certificate deployment)
+- **Configuration Updates**: Worker → Gateway (streaming for real-time config changes)
+- **Health Checks**: Bidirectional (both services monitor each other's health)
+- **Status Reporting**: Gateway → Worker (streaming for operational metrics)
+
+#### Security Considerations
+- **mTLS Authentication**: Mutual TLS for service authentication
+- **Network Segmentation**: Services communicate over dedicated internal network
+- **Certificate Management**: Separate certificate authority for inter-service communication
+- **Access Control**: Service-specific permissions and role-based access
+
 ## Service Responsibilities
 
 ### Gateway Service
@@ -93,7 +118,7 @@ One of the most critical integrations between Gateway and Worker services is cer
 3. Worker requests new certificate from CA (ACME protocol)
 4. Worker validates new certificate
 5. Worker updates certificate store
-6. Worker notifies Gateway of new certificate availability
+6. Worker notifies Gateway instances via gRPC of new certificate availability
 7. Gateway loads new certificate and begins using it
 8. Old certificate is marked for cleanup after grace period
 ```
@@ -106,9 +131,9 @@ In scenarios where certificate renewal fails or takes longer than expected:
 1. Worker detects certificate renewal failure or delay
 2. Worker generates temporary self-signed certificate with:
    - Same subject name as original certificate
-   - Extended validity period (7-30 days)
+   - Extended validity period (14 days maximum)
    - Clear marking as temporary certificate
-3. Worker immediately deploys temporary certificate to Gateway
+3. Worker immediately deploys temporary certificate to Gateway via gRPC
 4. Gateway begins serving temporary certificate
 5. Worker continues renewal attempts in background
 6. Once real certificate is obtained, Worker replaces temporary certificate
@@ -144,7 +169,7 @@ Gateway Instance 3  ←─┘         │
 3. Worker compiles rule in background
 4. Worker tests rule against historical traffic patterns
 5. Worker stages compiled rule for deployment
-6. Worker pushes validated rule to Gateway instances
+6. Worker pushes validated rule to Gateway instances via gRPC
 7. Gateway hot-swaps rule without service interruption
 8. Worker monitors rule performance and effectiveness
 ```
@@ -158,11 +183,11 @@ Gateway Instance 3  ←─┘         │
 
 **New Two-Service Flow:**
 ```
-1. Worker detects upcoming certificate expiration (30 days out)
+1. Worker detects upcoming certificate expiration (30 days before expiration)
 2. Worker begins renewal process during low-traffic period
 3. Worker obtains new certificate from CA
 4. Worker validates certificate against current domains
-5. Worker deploys certificate to Gateway instances with zero downtime
+5. Worker deploys certificate to Gateway instances via gRPC with zero downtime
 6. Worker monitors certificate deployment success
 7. If renewal fails, Worker deploys temporary certificate automatically
 8. Worker alerts administrators and continues renewal attempts
@@ -182,7 +207,7 @@ Gateway Instance 3  ←─┘         │
 3. Worker correlates events across all Gateway instances
 4. Worker identifies coordinated attack patterns
 5. Worker generates new WAF rules automatically
-6. Worker deploys emergency rules to all Gateway instances
+6. Worker deploys emergency rules to all Gateway instances via gRPC
 7. Worker continues analysis for long-term security improvements
 8. Worker generates incident reports and recommendations
 ```
@@ -234,7 +259,7 @@ Gateway Instance 3  ←─┘         │
    - Implement basic job queue system
 
 2. **Communication Infrastructure**:
-   - Implement secure API communication between services
+   - Implement gRPC/gRPCS communication between Gateway and Worker services
    - Set up shared configuration store (Redis/Database)
    - Implement service discovery mechanism
    - Create monitoring and logging for inter-service communication
