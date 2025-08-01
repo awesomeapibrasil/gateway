@@ -126,6 +126,50 @@ upstream:
 - **CSRF**: Cross-site request forgery protection
 - **Directory Traversal**: Path-based attack prevention
 - **Rate Limiting**: Distributed rate limiting with burst protection
+- **ModSecurity Integration**: OWASP Core Rule Set (CRS) compatible engine
+
+### ModSecurity Integration
+
+Gateway includes a native Rust implementation of ModSecurity-compatible rules engine:
+
+- **OWASP TOP 10 Coverage**: Built-in rules covering all OWASP Top 10 vulnerabilities
+- **Dynamic Rule Updates**: Update rules without restarting the gateway
+- **Custom Rules**: Support for custom ModSecurity-style rules
+- **Performance Optimized**: Native Rust implementation for maximum performance
+- **OWASP CRS Compatible**: Supports OWASP Core Rule Set syntax
+
+#### Quick ModSecurity Setup
+
+```yaml
+waf:
+  enabled: true
+  modsecurity:
+    enabled: true
+    rules_path: "config/modsecurity/custom"
+    owasp_crs_path: "config/modsecurity/owasp-crs"
+    blocking_mode: true
+    rule_update_interval: 300
+```
+
+```bash
+# Create ModSecurity directory structure
+mkdir -p config/modsecurity/{custom,owasp-crs/rules}
+
+# Start the gateway with ModSecurity protection
+cargo run -- --config config/gateway.yaml
+```
+
+#### Supported Rule Syntax
+
+```
+SecRule VARIABLES "OPERATOR" "ACTIONS"
+
+# Examples:
+SecRule ARGS "@detectSQLi" "id:100001,msg:'SQL Injection',severity:CRITICAL,block"
+SecRule REQUEST_URI "@rx \.\./.*" "id:100002,msg:'Path Traversal',severity:ERROR,block"
+```
+
+See [ModSecurity Configuration Guide](config/modsecurity/README.md) for detailed setup instructions.
 
 ### Authentication & Authorization
 - **JWT**: JSON Web Token support
@@ -189,13 +233,14 @@ Gateway is built with a modular architecture, now featuring direct integration w
 
 ### Components
 - **Gateway Core**: Main proxy engine powered by Pingora
-- **WAF Engine**: Web Application Firewall
+- **WAF Engine**: Web Application Firewall with ModSecurity integration
 - **Cache Manager**: Distributed caching
 - **Auth Manager**: Authentication and authorization
 - **Database Manager**: Database abstraction layer
 - **Monitoring Manager**: Metrics and observability
 - **Plugin Manager**: Extensible plugin system
 - **Pingora Adapter**: Direct integration with Cloudflare's Pingora framework
+- **ModSecurity Engine**: OWASP CRS compatible rule engine
 
 ## 🚀 Pingora Integration
 
@@ -231,6 +276,17 @@ gateway.run_forever();
 - [ ] **SSL/TLS Integration**: Certificate management and termination
 - [ ] **Monitoring Integration**: Metrics collection and observability hooks
 - [ ] **Configuration Migration**: Integrate with existing gateway configuration system
+
+### ModSecurity Integration Status
+
+- [x] **Core Engine**: Native Rust ModSecurity-compatible rule engine implemented
+- [x] **OWASP TOP 10 Rules**: Built-in rules covering all OWASP Top 10 vulnerabilities
+- [x] **Rule Parsing**: Support for ModSecurity SecRule syntax
+- [x] **Dynamic Updates**: Runtime rule updates without restart
+- [x] **Configuration**: YAML configuration with examples
+- [x] **Documentation**: Comprehensive setup and usage guide
+- [x] **Testing**: Full test suite for rule engine and detection
+- [x] **WAF Integration**: Seamless integration with existing WAF pipeline
 
 ## 🔌 Plugin System
 

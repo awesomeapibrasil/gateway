@@ -155,6 +155,15 @@ impl Gateway {
             blocked_user_agents: config_read.waf.blocked_user_agents.clone(),
             max_request_size: config_read.waf.max_request_size,
             block_malicious_ips: config_read.waf.block_malicious_ips,
+            modsecurity: gateway_waf::ModSecurityConfig {
+                enabled: config_read.waf.modsecurity.enabled,
+                rules_path: config_read.waf.modsecurity.rules_path.clone(),
+                owasp_crs_path: config_read.waf.modsecurity.owasp_crs_path.clone(),
+                debug_log_level: config_read.waf.modsecurity.debug_log_level,
+                max_body_size: config_read.waf.modsecurity.max_body_size,
+                blocking_mode: config_read.waf.modsecurity.blocking_mode,
+                rule_update_interval: config_read.waf.modsecurity.rule_update_interval,
+            },
         };
         let waf = Arc::new(
             WafEngine::new(&waf_config, database.clone())

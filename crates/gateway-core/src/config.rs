@@ -155,6 +155,19 @@ pub struct WafConfig {
     pub blocked_user_agents: Vec<String>,
     pub max_request_size: usize,
     pub block_malicious_ips: bool,
+    pub modsecurity: ModSecurityConfig,
+}
+
+/// ModSecurity configuration for the gateway core  
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModSecurityConfig {
+    pub enabled: bool,
+    pub rules_path: String,
+    pub owasp_crs_path: String,
+    pub debug_log_level: i32,
+    pub max_body_size: usize,
+    pub blocking_mode: bool,
+    pub rule_update_interval: u64,
 }
 
 /// Rate limiting configuration
@@ -339,6 +352,20 @@ impl Default for ServerConfig {
     }
 }
 
+impl Default for ModSecurityConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            rules_path: "config/modsecurity".to_string(),
+            owasp_crs_path: "config/modsecurity/owasp-crs".to_string(),
+            debug_log_level: 3,
+            max_body_size: 1024 * 1024, // 1MB
+            blocking_mode: true,
+            rule_update_interval: 300, // 5 minutes
+        }
+    }
+}
+
 impl Default for WafConfig {
     fn default() -> Self {
         Self {
@@ -351,6 +378,7 @@ impl Default for WafConfig {
             blocked_user_agents: Vec::new(),
             max_request_size: 10 * 1024 * 1024, // 10MB
             block_malicious_ips: true,
+            modsecurity: ModSecurityConfig::default(),
         }
     }
 }

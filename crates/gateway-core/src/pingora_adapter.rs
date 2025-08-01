@@ -185,6 +185,15 @@ impl PingoraGateway {
             blocked_user_agents: config.waf.blocked_user_agents.clone(),
             max_request_size: config.waf.max_request_size,
             block_malicious_ips: config.waf.block_malicious_ips,
+            modsecurity: gateway_waf::ModSecurityConfig {
+                enabled: config.waf.modsecurity.enabled,
+                rules_path: config.waf.modsecurity.rules_path.clone(),
+                owasp_crs_path: config.waf.modsecurity.owasp_crs_path.clone(),
+                debug_log_level: config.waf.modsecurity.debug_log_level,
+                max_body_size: config.waf.modsecurity.max_body_size,
+                blocking_mode: config.waf.modsecurity.blocking_mode,
+                rule_update_interval: config.waf.modsecurity.rule_update_interval,
+            },
         };
         let waf = Arc::new(
             WafEngine::new(&waf_config, database.clone())
