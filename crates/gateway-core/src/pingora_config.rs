@@ -34,10 +34,9 @@ impl PingoraConfigAdapter {
         debug!("Building Pingora server configuration");
 
         // Create a comprehensive ServerConf based on gateway config
-        let mut pingora_conf = ServerConf::new()
-            .ok_or_else(|| {
-                GatewayError::ConfigError("Failed to create Pingora server configuration".to_string())
-            })?;
+        let mut pingora_conf = ServerConf::new().ok_or_else(|| {
+            GatewayError::ConfigError("Failed to create Pingora server configuration".to_string())
+        })?;
 
         // Configure threading based on server settings
         pingora_conf.threads = config.server.worker_threads;
