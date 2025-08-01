@@ -12,12 +12,11 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-# Note: Pingora is not yet publicly available, using alternative implementations
-# pingora = "0.1"
-# pingora-core = "0.1"
-# pingora-proxy = "0.1"
-# pingora-load-balancing = "0.1"
-# pingora-cache = "0.1"
+# Pingora dependencies - now publicly available
+pingora = "0.5.0"
+pingora-core = "0.5.0"
+pingora-proxy = "0.5.0"
+pingora-load-balancing = "0.5.0"
 
 # Async runtime
 tokio = { version = "1.0", features = ["full"] }

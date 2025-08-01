@@ -1,5 +1,5 @@
 use clap::Parser;
-use gateway_core::{Gateway, GatewayConfig};
+use gateway_core::{Gateway, GatewayConfig, pingora_adapter};
 use std::process;
 use tracing::{error, info};
 
@@ -23,6 +23,10 @@ struct Args {
     /// Bind address
     #[arg(short, long, default_value = "0.0.0.0:8080")]
     bind: String,
+
+    /// Run Pingora example server
+    #[arg(long)]
+    pingora_example: bool,
 }
 
 #[tokio::main]
@@ -43,6 +47,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
 
     info!("Starting Pingora-based API Gateway v0.1.0");
+
+    // Check if user wants to run Pingora example
+    if args.pingora_example {
+        info!("Running Pingora integration example...");
+        return pingora_adapter::run_example_server();
+    }
 
     // Load configuration
     let config = match GatewayConfig::from_file(&args.config) {

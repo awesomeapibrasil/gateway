@@ -157,7 +157,7 @@ Structured JSON logging with configurable levels:
 
 ## 🏗️ Architecture
 
-Gateway is built with a modular architecture:
+Gateway is built with a modular architecture, now featuring direct integration with Cloudflare's Pingora framework:
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
@@ -174,13 +174,49 @@ Gateway is built with a modular architecture:
 ```
 
 ### Components
-- **Gateway Core**: Main proxy engine
+- **Gateway Core**: Main proxy engine powered by Pingora
 - **WAF Engine**: Web Application Firewall
 - **Cache Manager**: Distributed caching
 - **Auth Manager**: Authentication and authorization
 - **Database Manager**: Database abstraction layer
 - **Monitoring Manager**: Metrics and observability
 - **Plugin Manager**: Extensible plugin system
+- **Pingora Adapter**: Direct integration with Cloudflare's Pingora framework
+
+## 🚀 Pingora Integration
+
+Gateway now includes direct integration with Cloudflare's Pingora framework for maximum performance and reliability. This integration provides:
+
+- **High-Performance Networking**: Leverage Pingora's optimized network stack
+- **Advanced Load Balancing**: Use Pingora's proven load balancing algorithms
+- **Better Connection Management**: Benefit from Pingora's connection pooling
+- **Production-Grade Reliability**: Built on the same foundation as Cloudflare's edge network
+
+### Running with Pingora
+
+```bash
+# Build with Pingora support
+cargo build --release
+
+# Run the basic Pingora example
+cargo run --bin gateway -- --pingora-example
+
+# Or integrate Pingora in your code
+use gateway_core::pingora_adapter::PingoraGateway;
+
+let gateway = PingoraGateway::new("MyGateway")?;
+gateway.run_forever();
+```
+
+### Pingora Integration Status
+
+- [x] **Basic Integration**: Pingora dependency added and basic server setup
+- [x] **Configuration Foundation**: Server configuration structure in place
+- [ ] **HTTP Service Integration**: Connect HTTP handlers with WAF processing
+- [ ] **Proxy Service Integration**: Full proxy implementation with load balancing
+- [ ] **SSL/TLS Integration**: Certificate management and termination
+- [ ] **Monitoring Integration**: Metrics collection and observability hooks
+- [ ] **Configuration Migration**: Integrate with existing gateway configuration system
 
 ## 🔌 Plugin System
 
