@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 /// ModSecurity-compatible rule engine configuration
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -29,6 +29,12 @@ pub struct ModSecurityConfig {
     pub blocking_mode: bool,
     /// Custom rule update interval in seconds
     pub rule_update_interval: u64,
+    /// OWASP CRS repository URL for dynamic updates
+    pub owasp_crs_repo_url: String,
+    /// OWASP CRS branch/tag to download
+    pub owasp_crs_version: String,
+    /// Whether to automatically update OWASP CRS rules on startup
+    pub auto_update_owasp_crs: bool,
 }
 
 impl Default for ModSecurityConfig {
@@ -41,6 +47,9 @@ impl Default for ModSecurityConfig {
             max_body_size: 1024 * 1024, // 1MB
             blocking_mode: true,
             rule_update_interval: 300, // 5 minutes
+            owasp_crs_repo_url: "https://github.com/coreruleset/coreruleset".to_string(),
+            owasp_crs_version: "v4.3.0".to_string(),
+            auto_update_owasp_crs: true,
         }
     }
 }
@@ -66,10 +75,12 @@ impl ModSecRule {
     /// Parse a ModSecurity rule line
     pub fn parse(line: &str) -> Result<Self> {
         let line = line.trim();
-        
+
         // Skip comments and empty lines
         if line.is_empty() || line.starts_with('#') {
-            return Err(WafError::RuleParseError("Empty or comment line".to_string()));
+            return Err(WafError::RuleParseError(
+                "Empty or comment line".to_string(),
+            ));
         }
 
         // Basic SecRule parsing: SecRule VARIABLES "OPERATOR" "ACTIONS"
@@ -82,7 +93,7 @@ impl ModSecRule {
         let mut current_part = String::new();
         let mut in_quotes = false;
         let mut chars = line.chars().peekable();
-        
+
         while let Some(ch) = chars.next() {
             match ch {
                 '"' => {
@@ -115,13 +126,15 @@ impl ModSecRule {
                 }
             }
         }
-        
+
         if !current_part.is_empty() {
             parts.push(current_part);
         }
-        
+
         if parts.len() < 4 {
-            return Err(WafError::RuleParseError("Invalid SecRule format".to_string()));
+            return Err(WafError::RuleParseError(
+                "Invalid SecRule format".to_string(),
+            ));
         }
 
         let variables = parts[1].split('|').map(|s| s.to_string()).collect();
@@ -131,13 +144,17 @@ impl ModSecRule {
         // Parse operator
         let (operator, operator_arg) = if operator_part.starts_with('@') {
             let op_parts: Vec<&str> = operator_part.splitn(2, ' ').collect();
-            (op_parts[0].to_string(), op_parts.get(1).unwrap_or(&"").to_string())
+            (
+                op_parts[0].to_string(),
+                op_parts.get(1).unwrap_or(&"").to_string(),
+            )
         } else {
             ("@rx".to_string(), operator_part.to_string())
         };
 
         // Parse actions
-        let actions: Vec<String> = actions_part.split(',')
+        let actions: Vec<String> = actions_part
+            .split(',')
             .map(|s| s.trim().to_string())
             .collect();
 
@@ -260,8 +277,10 @@ impl ModSecRule {
                 if let Some(regex) = &self.regex {
                     Ok(regex.is_match(value))
                 } else {
-                    // Fallback to simple string matching
-                    Ok(value.contains(&self.operator_arg))
+                    // Enhanced fallback with case-insensitive matching and word boundaries
+                    let search_term = &self.operator_arg.to_lowercase();
+                    let value_lower = value.to_lowercase();
+                    Ok(value_lower.contains(search_term))
                 }
             }
             "@detectSQLi" => {
@@ -272,7 +291,7 @@ impl ModSecRule {
                     r"(?i)(\'\s*or\s+\d+\s*=\s*\d+|\'\s*or\s+\'\w+\'\s*=\s*\'\w+)",
                     r"(?i)(--|\#|\/\*|\*\/)",
                 ];
-                
+
                 for pattern in &sql_patterns {
                     if let Ok(regex) = Regex::new(pattern) {
                         if regex.is_match(value) {
@@ -289,7 +308,7 @@ impl ModSecRule {
                     r"(?i)(onload=|onerror=|onclick=|onmouseover=)",
                     r"(?i)(eval\s*\(|document\.cookie|document\.write)",
                 ];
-                
+
                 for pattern in &xss_patterns {
                     if let Ok(regex) = Regex::new(pattern) {
                         if regex.is_match(value) {
@@ -304,14 +323,16 @@ impl ModSecRule {
             "@endsWith" => Ok(value.ends_with(&self.operator_arg)),
             "@eq" => Ok(value == self.operator_arg),
             "@gt" => {
-                if let (Ok(val), Ok(arg)) = (value.parse::<i64>(), self.operator_arg.parse::<i64>()) {
+                if let (Ok(val), Ok(arg)) = (value.parse::<i64>(), self.operator_arg.parse::<i64>())
+                {
                     Ok(val > arg)
                 } else {
                     Ok(false)
                 }
             }
             "@lt" => {
-                if let (Ok(val), Ok(arg)) = (value.parse::<i64>(), self.operator_arg.parse::<i64>()) {
+                if let (Ok(val), Ok(arg)) = (value.parse::<i64>(), self.operator_arg.parse::<i64>())
+                {
                     Ok(val < arg)
                 } else {
                     Ok(false)
@@ -334,7 +355,7 @@ impl ModSecRule {
                 _ => {}
             }
         }
-        
+
         // Default action based on severity
         match self.severity.as_str() {
             "EMERGENCY" | "ALERT" | "CRITICAL" | "ERROR" => "block".to_string(),
@@ -389,6 +410,21 @@ impl ModSecurityEngine {
             }
         }
 
+        // Download and update OWASP CRS rules if enabled
+        if config.auto_update_owasp_crs {
+            info!("Checking for OWASP CRS updates...");
+            match Self::download_owasp_crs_rules(config).await {
+                Ok(updated) => {
+                    if updated {
+                        info!("OWASP CRS rules updated from repository");
+                    } else {
+                        debug!("OWASP CRS rules are up to date");
+                    }
+                }
+                Err(e) => warn!("Failed to update OWASP CRS rules: {}", e),
+            }
+        }
+
         if Path::new(&config.owasp_crs_path).exists() {
             match Self::load_rules_from_directory(&mut rules, &config.owasp_crs_path).await {
                 Ok(count) => {
@@ -424,29 +460,22 @@ impl ModSecurityEngine {
             r#"SecRule REQUEST_URI "@detectSQLi" "id:100001,msg:'SQL Injection Attack Detected',severity:CRITICAL,phase:2,block""#,
             r#"SecRule ARGS "@detectSQLi" "id:100002,msg:'SQL Injection in Parameters',severity:CRITICAL,phase:2,block""#,
             r#"SecRule REQUEST_BODY "@detectSQLi" "id:100003,msg:'SQL Injection in Request Body',severity:CRITICAL,phase:2,block""#,
-            
             // XSS Protection (OWASP TOP10 #3)
             r#"SecRule REQUEST_URI "@detectXSS" "id:100011,msg:'Cross-site Scripting (XSS) Attack',severity:CRITICAL,phase:2,block""#,
             r#"SecRule ARGS "@detectXSS" "id:100012,msg:'XSS Attack in Parameters',severity:CRITICAL,phase:2,block""#,
             r#"SecRule REQUEST_BODY "@detectXSS" "id:100013,msg:'XSS Attack in Request Body',severity:CRITICAL,phase:2,block""#,
-            
             // Path Traversal Protection (OWASP TOP10 #1)
             r#"SecRule REQUEST_URI "@rx \.\./" "id:100021,msg:'Path Traversal Attack',severity:ERROR,phase:2,block""#,
             r#"SecRule REQUEST_URI "@rx \.\.\\\"" "id:100022,msg:'Windows Path Traversal Attack',severity:ERROR,phase:2,block""#,
-            
             // Command Injection Protection (OWASP TOP10 #3)
             r#"SecRule REQUEST_URI "@rx (?i)(;|&&|\|\|).*(ls|cat|wget|curl|nc|netcat|ping)" "id:100031,msg:'Command Injection Attempt',severity:CRITICAL,phase:2,block""#,
             r#"SecRule ARGS "@rx (?i)(;|&&|\|\|).*(ls|cat|wget|curl|nc|netcat|ping)" "id:100032,msg:'Command Injection in Parameters',severity:CRITICAL,phase:2,block""#,
-            
             // File Inclusion Protection (OWASP TOP10 #5)
             r#"SecRule REQUEST_URI "@rx (?i)(file://|php://|data://|expect://|zip://)" "id:100041,msg:'File Inclusion Attack',severity:ERROR,phase:2,block""#,
-            
             // Suspicious User Agents (OWASP TOP10 #6)
             r#"SecRule REQUEST_HEADERS:User-Agent "@rx (?i)(sqlmap|nikto|nmap|masscan|zap|burp|w3af|acunetix|nessus)" "id:100051,msg:'Malicious User Agent',severity:WARNING,phase:1,block""#,
-            
             // Protocol Violations (OWASP TOP10 #8)
             r#"SecRule REQUEST_METHOD "@rx ^(TRACE|DEBUG|TRACK|CONNECT)$" "id:100061,msg:'HTTP Method Not Allowed',severity:WARNING,phase:1,block""#,
-            
             // Large Request Body (OWASP TOP10 #4)
             r#"SecRule REQUEST_HEADERS:Content-Length "@gt 52428800" "id:100071,msg:'Request Body Too Large',severity:WARNING,phase:1,block""#,
         ];
@@ -468,17 +497,28 @@ impl ModSecurityEngine {
     async fn load_rules_from_directory(rules: &mut Vec<ModSecRule>, path: &str) -> Result<u64> {
         let path = Path::new(path);
         if !path.exists() {
+            info!("Rules directory does not exist: {}", path.display());
+            return Ok(0);
+        }
+
+        if !path.is_dir() {
+            warn!("Rules path is not a directory: {}", path.display());
             return Ok(0);
         }
 
         let mut count = 0;
-        let mut entries = tokio::fs::read_dir(path).await
-            .map_err(|e| WafError::IoError(e))?;
+        let mut entries = tokio::fs::read_dir(path).await.map_err(|e| {
+            error!("Failed to read directory {}: {}", path.display(), e);
+            WafError::IoError(e)
+        })?;
 
-        while let Some(entry) = entries.next_entry().await
-            .map_err(|e| WafError::IoError(e))? {
-            
+        while let Some(entry) = entries
+            .next_entry()
+            .await
+            .map_err(|e| WafError::IoError(e))?
+        {
             let file_path = entry.path();
+
             if file_path.extension().and_then(|s| s.to_str()) == Some("conf") {
                 match Self::load_rules_from_file(rules, &file_path).await {
                     Ok(file_count) => {
@@ -497,9 +537,10 @@ impl ModSecurityEngine {
 
     /// Load rules from a single file
     async fn load_rules_from_file(rules: &mut Vec<ModSecRule>, file_path: &Path) -> Result<u64> {
-        let content = tokio::fs::read_to_string(file_path).await
+        let content = tokio::fs::read_to_string(file_path)
+            .await
             .map_err(|e| WafError::IoError(e))?;
-        
+
         let mut count = 0;
         for line in content.lines() {
             match ModSecRule::parse(line) {
@@ -519,12 +560,15 @@ impl ModSecurityEngine {
     /// Evaluate a request using ModSecurity rules
     pub async fn evaluate_request(&self, request: &RequestContext) -> Result<WafResult> {
         let config = self.config.read().await;
-        
+
         if !config.enabled {
             return Ok(WafResult::Allow);
         }
 
-        debug!("Evaluating request with ModSecurity: {} {}", request.method, request.uri);
+        debug!(
+            "Evaluating request with ModSecurity: {} {}",
+            request.method, request.uri
+        );
 
         // Update stats
         {
@@ -565,7 +609,7 @@ impl ModSecurityEngine {
     /// Update rules dynamically
     pub async fn update_rules(&self) -> Result<()> {
         let config = self.config.read().await;
-        
+
         if !config.enabled {
             return Ok(());
         }
@@ -586,6 +630,21 @@ impl ModSecurityEngine {
                     info!("Reloaded {} custom ModSecurity rules", count);
                 }
                 Err(e) => warn!("Failed to reload custom rules: {}", e),
+            }
+        }
+
+        // Download and update OWASP CRS rules if enabled
+        if config.auto_update_owasp_crs {
+            match Self::download_owasp_crs_rules(&*config).await {
+                Ok(updated) => {
+                    if updated {
+                        info!("OWASP CRS rules updated from repository during rule refresh");
+                    }
+                }
+                Err(e) => warn!(
+                    "Failed to update OWASP CRS rules during rule refresh: {}",
+                    e
+                ),
             }
         }
 
@@ -613,7 +672,10 @@ impl ModSecurityEngine {
             stats.last_rule_update = Some(chrono::Utc::now());
         }
 
-        info!("ModSecurity rules updated successfully, total: {}", total_rules);
+        info!(
+            "ModSecurity rules updated successfully, total: {}",
+            total_rules
+        );
         Ok(())
     }
 
@@ -627,13 +689,13 @@ impl ModSecurityEngine {
         let mut config = self.config.write().await;
         let old_config = config.clone();
         *config = new_config.clone();
-        
+
         // If enabled state changed or paths changed, trigger rule reload
-        if new_config.enabled && (
-            old_config.rules_path != new_config.rules_path ||
-            old_config.owasp_crs_path != new_config.owasp_crs_path ||
-            old_config.enabled != new_config.enabled
-        ) {
+        if new_config.enabled
+            && (old_config.rules_path != new_config.rules_path
+                || old_config.owasp_crs_path != new_config.owasp_crs_path
+                || old_config.enabled != new_config.enabled)
+        {
             drop(config); // Release lock before calling update_rules
             self.update_rules().await?;
         }
@@ -651,5 +713,133 @@ impl ModSecurityEngine {
         // Check if we have any rules loaded
         let stats = self.stats.read().await;
         stats.rules_loaded > 0
+    }
+
+    /// Download OWASP CRS rules from the official repository
+    async fn download_owasp_crs_rules(config: &ModSecurityConfig) -> Result<bool> {
+        let crs_path = Path::new(&config.owasp_crs_path);
+
+        // Check if directory exists and has content
+        let needs_download = if crs_path.exists() {
+            // Check if directory is empty or needs update
+            let mut entries = tokio::fs::read_dir(crs_path)
+                .await
+                .map_err(|e| WafError::IoError(e))?;
+
+            // If directory is empty, we need to download
+            entries
+                .next_entry()
+                .await
+                .map_err(|e| WafError::IoError(e))?
+                .is_none()
+        } else {
+            true
+        };
+
+        if !needs_download {
+            debug!("OWASP CRS directory already exists and has content, skipping download");
+            return Ok(false);
+        }
+
+        info!(
+            "Downloading OWASP CRS rules from {}",
+            config.owasp_crs_repo_url
+        );
+
+        // Create the directory if it doesn't exist
+        if let Err(e) = tokio::fs::create_dir_all(crs_path).await {
+            warn!("Failed to create OWASP CRS directory: {}", e);
+            return Err(WafError::IoError(e));
+        }
+
+        // Download the rules files from GitHub API
+        let client = reqwest::Client::new();
+        let rules_files = vec![
+            "crs-setup.conf.example",
+            "rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf.example",
+            "rules/REQUEST-901-INITIALIZATION.conf",
+            "rules/REQUEST-903.9001-DRUPAL-EXCLUSION-RULES.conf",
+            "rules/REQUEST-903.9002-WORDPRESS-EXCLUSION-RULES.conf",
+            "rules/REQUEST-905-COMMON-EXCEPTIONS.conf",
+            "rules/REQUEST-910-IP-REPUTATION.conf",
+            "rules/REQUEST-911-METHOD-ENFORCEMENT.conf",
+            "rules/REQUEST-912-DOS-PROTECTION.conf",
+            "rules/REQUEST-913-SCANNER-DETECTION.conf",
+            "rules/REQUEST-920-PROTOCOL-ENFORCEMENT.conf",
+            "rules/REQUEST-921-PROTOCOL-ATTACK.conf",
+            "rules/REQUEST-922-MULTIPART-ATTACK.conf",
+            "rules/REQUEST-930-APPLICATION-ATTACK-LFI.conf",
+            "rules/REQUEST-931-APPLICATION-ATTACK-RFI.conf",
+            "rules/REQUEST-932-APPLICATION-ATTACK-RCE.conf",
+            "rules/REQUEST-933-APPLICATION-ATTACK-PHP.conf",
+            "rules/REQUEST-934-APPLICATION-ATTACK-NODEJS.conf",
+            "rules/REQUEST-941-APPLICATION-ATTACK-XSS.conf",
+            "rules/REQUEST-942-APPLICATION-ATTACK-SQLI.conf",
+            "rules/REQUEST-943-APPLICATION-ATTACK-SESSION-FIXATION.conf",
+            "rules/REQUEST-944-APPLICATION-ATTACK-JAVA.conf",
+            "rules/RESPONSE-950-DATA-LEAKAGES.conf",
+            "rules/RESPONSE-951-DATA-LEAKAGES-SQL.conf",
+            "rules/RESPONSE-952-DATA-LEAKAGES-JAVA.conf",
+            "rules/RESPONSE-953-DATA-LEAKAGES-PHP.conf",
+            "rules/RESPONSE-954-DATA-LEAKAGES-IIS.conf",
+            "rules/RESPONSE-959-BLOCKING-EVALUATION.conf",
+            "rules/RESPONSE-980-CORRELATION.conf",
+            "rules/RESPONSE-999-EXCLUSION-RULES-AFTER-CRS.conf.example",
+        ];
+
+        let mut downloaded_count = 0;
+        for file_path in rules_files {
+            let url = format!(
+                "https://raw.githubusercontent.com/coreruleset/coreruleset/{}/{}",
+                config.owasp_crs_version, file_path
+            );
+
+            match client.get(&url).send().await {
+                Ok(response) => {
+                    if response.status().is_success() {
+                        match response.text().await {
+                            Ok(content) => {
+                                let local_path = crs_path.join(file_path);
+
+                                // Create parent directory if needed
+                                if let Some(parent) = local_path.parent() {
+                                    if let Err(e) = tokio::fs::create_dir_all(parent).await {
+                                        warn!("Failed to create directory {:?}: {}", parent, e);
+                                        continue;
+                                    }
+                                }
+
+                                // Write file content
+                                if let Err(e) = tokio::fs::write(&local_path, content).await {
+                                    warn!("Failed to write file {:?}: {}", local_path, e);
+                                } else {
+                                    downloaded_count += 1;
+                                    debug!("Downloaded: {}", file_path);
+                                }
+                            }
+                            Err(e) => warn!("Failed to read response for {}: {}", file_path, e),
+                        }
+                    } else {
+                        warn!(
+                            "Failed to download {}: HTTP {}",
+                            file_path,
+                            response.status()
+                        );
+                    }
+                }
+                Err(e) => warn!("Failed to download {}: {}", file_path, e),
+            }
+        }
+
+        if downloaded_count > 0 {
+            info!(
+                "Successfully downloaded {} OWASP CRS rule files",
+                downloaded_count
+            );
+            Ok(true)
+        } else {
+            warn!("Failed to download any OWASP CRS rule files");
+            Ok(false)
+        }
     }
 }

@@ -52,6 +52,10 @@ waf:
     owasp_crs_path: "config/modsecurity/owasp-crs"
     blocking_mode: true
     rule_update_interval: 300
+    # Dynamic OWASP CRS updates (NEW)
+    auto_update_owasp_crs: true
+    owasp_crs_repo_url: "https://github.com/coreruleset/coreruleset"
+    owasp_crs_version: "v4.3.0"
 ```
 
 2. **Create the directory structure**:
@@ -59,13 +63,18 @@ waf:
 mkdir -p config/modsecurity/{custom,owasp-crs/rules}
 ```
 
-3. **Download OWASP CRS** (recommended):
-```bash
-cd config/modsecurity
-wget https://github.com/coreruleset/coreruleset/archive/v3.3.4.tar.gz
-tar -xzf v3.3.4.tar.gz
-mv coreruleset-3.3.4/* owasp-crs/
-```
+3. **OWASP CRS Rules** - Choose one option:
+
+   **Option A: Automatic Download (Recommended)**
+   The gateway will automatically download OWASP CRS rules on startup when `auto_update_owasp_crs: true`.
+   
+   **Option B: Manual Download**:
+   ```bash
+   cd config/modsecurity
+   wget https://github.com/coreruleset/coreruleset/archive/v4.3.0.tar.gz
+   tar -xzf v4.3.0.tar.gz
+   mv coreruleset-4.3.0/* owasp-crs/
+   ```
 
 ## Built-in Rules
 
@@ -138,21 +147,69 @@ SecRule REQUEST_HEADERS:User-Agent "@contains bot" "id:100003,msg:'Bot Traffic D
 
 ## Dynamic Rule Updates
 
-Rules can be updated dynamically without restarting the gateway:
+The Gateway supports multiple methods for updating ModSecurity rules:
 
-1. **Via Configuration Update**:
+### 1. Automatic OWASP CRS Updates (NEW)
+
+Configure automatic updates from the official OWASP CRS repository:
+
+```yaml
+waf:
+  modsecurity:
+    auto_update_owasp_crs: true
+    owasp_crs_repo_url: "https://github.com/coreruleset/coreruleset"
+    owasp_crs_version: "v4.3.0"  # or "main" for latest
+    rule_update_interval: 3600    # Check every hour
+```
+
+**Features:**
+- Downloads rules directly from the official GitHub repository
+- Supports specific versions or latest release
+- Automatic updates during gateway startup
+- Periodic updates based on `rule_update_interval`
+- No need to commit rule files to your repository
+
+**Benefits:**
+- Always up-to-date with latest security rules
+- Reduces repository size (no committed rule files)
+- Centralized rule management
+- Easy version upgrades
+
+### 2. Manual Rule Updates
+
+Rules can be updated manually without restarting the gateway:
+
+**Via Configuration Update**:
 ```bash
 # Update configuration file and reload
 kill -HUP <gateway_pid>
 ```
 
-2. **Via API** (if enabled):
+**Via API** (if enabled):
 ```bash
 curl -X POST http://localhost:9090/api/v1/waf/reload-rules
 ```
 
-3. **Automatic Updates**:
-The gateway can be configured to automatically check for rule updates at specified intervals.
+### 3. Container Build Integration
+
+For containerized deployments, you can choose between:
+
+**Option A: Runtime Download (Recommended)**
+```dockerfile
+# Dockerfile
+FROM your-base-image
+COPY config/gateway.yaml /app/config/
+# Rules will be downloaded at runtime
+```
+
+**Option B: Build-time Download**
+```dockerfile
+# Dockerfile
+FROM your-base-image
+RUN mkdir -p /app/config/modsecurity/owasp-crs && \
+    wget -O- https://github.com/coreruleset/coreruleset/archive/v4.3.0.tar.gz | \
+    tar -xz -C /app/config/modsecurity/owasp-crs --strip-components=1
+```
 
 ## Monitoring and Logging
 

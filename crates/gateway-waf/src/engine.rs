@@ -39,7 +39,7 @@ impl WafEngine {
         let rate_limiter =
             Arc::new(RateLimiter::new(&config.rate_limiting, database.clone()).await?);
         let ip_filter = Arc::new(IpFilter::new(&config.ip_whitelist, &config.ip_blacklist));
-        
+
         // Initialize ModSecurity engine
         let modsecurity = Arc::new(ModSecurityEngine::new(&config.modsecurity).await?);
 
@@ -265,7 +265,11 @@ impl WafEngine {
             .await;
 
         // Update ModSecurity configuration
-        if let Err(e) = self.modsecurity.update_config(&new_config.modsecurity).await {
+        if let Err(e) = self
+            .modsecurity
+            .update_config(&new_config.modsecurity)
+            .await
+        {
             warn!("Failed to update ModSecurity config: {}", e);
         }
 
@@ -276,7 +280,7 @@ impl WafEngine {
     /// Check if WAF is healthy
     pub async fn is_healthy(&self) -> bool {
         // Check if all components are functioning
-        self.rate_limiter.is_healthy().await 
+        self.rate_limiter.is_healthy().await
             && self.ip_filter.is_healthy().await
             && self.modsecurity.is_healthy().await
     }
