@@ -1,20 +1,16 @@
 //! Complete Pingora Gateway Integration
 //!
 //! This module provides a complete integration with Cloudflare's Pingora framework,
-//! incorporating all gateway components including WAF, authentication, caching, 
+//! incorporating all gateway components including WAF, authentication, caching,
 //! load balancing, SSL/TLS termination, and monitoring.
 
-use pingora::protocols::Digest;
-use pingora::server::configuration::Opt;
 use pingora::server::Server;
 use std::sync::Arc;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 use crate::config::GatewayConfig;
 use crate::error::{GatewayError, Result};
 use crate::pingora_config::PingoraConfigAdapter;
-use crate::pingora_proxy::PingoraProxyService;
-use crate::pingora_service::PingoraHttpService;
 use crate::pingora_ssl::PingoraSslConfig;
 
 use gateway_auth::AuthManager;
@@ -22,7 +18,13 @@ use gateway_cache::CacheManager;
 use gateway_database::DatabaseManager;
 use gateway_monitoring::MonitoringManager;
 use gateway_plugins::PluginManager;
-use gateway_ssl::{SslManager, config::{AutoSslConfig, CertificateConfig, VaultConfig, VaultAuthMethod, AcmeConfig, DnsProviderConfig}};
+use gateway_ssl::{
+    config::{
+        AcmeConfig, AutoSslConfig, CertificateConfig, DnsProviderConfig, VaultAuthMethod,
+        VaultConfig,
+    },
+    SslManager,
+};
 use gateway_waf::WafEngine;
 
 /// Complete Pingora-based Gateway implementation
@@ -36,6 +38,7 @@ pub struct PingoraGateway {
     monitoring: Arc<MonitoringManager>,
     plugins: Arc<PluginManager>,
     database: Arc<DatabaseManager>,
+    #[allow(dead_code)]
     cert_manager: Option<Arc<SslManager>>,
 }
 
@@ -47,9 +50,10 @@ impl PingoraGateway {
     /// ```rust,no_run
     /// use gateway_core::{GatewayConfig, pingora_adapter::PingoraGateway};
     ///
-    /// fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let config = GatewayConfig::default();
-    ///     let gateway = PingoraGateway::new(config)?;
+    ///     let gateway = PingoraGateway::new(config).await?;
     ///     gateway.run_forever();
     ///     Ok(())
     /// }
@@ -62,7 +66,7 @@ impl PingoraGateway {
 
         // Create configuration adapter
         let config_adapter = PingoraConfigAdapter::new(config.clone())?;
-        
+
         // Validate Pingora compatibility
         let warnings = config_adapter.validate_pingora_compatibility()?;
         for warning in warnings {
@@ -252,38 +256,54 @@ impl PingoraGateway {
                 }),
                 acme: AcmeConfig {
                     directory_url: config.ssl.acme.directory_url.clone(),
-                    contact_email: config.ssl.acme.contact_email.clone(),
                     terms_of_service_agreed: config.ssl.acme.terms_of_service_agreed,
                     key_type: config.ssl.acme.key_type.clone(),
                     challenge_timeout: config.ssl.acme.challenge_timeout,
                     propagation_timeout: config.ssl.acme.propagation_timeout,
-                    dns_providers: config.ssl.acme.dns_providers.iter().map(|(k, v)| {
-                        (k.clone(), DnsProviderConfig {
-                            provider: v.provider.clone(),
-                            config: v.config.clone(),
+                    dns_providers: config
+                        .ssl
+                        .acme
+                        .dns_providers
+                        .iter()
+                        .map(|(k, v)| {
+                            (
+                                k.clone(),
+                                DnsProviderConfig {
+                                    provider: v.provider.clone(),
+                                    config: v.config.clone(),
+                                },
+                            )
                         })
-                    }).collect(),
+                        .collect(),
                 },
             };
 
-            let cert_manager = Arc::new(
-                SslManager::new(ssl_config)
-                    .await
-                    .map_err(|e| {
-                        GatewayError::SslError(format!("Failed to initialize SSL manager: {}", e))
-                    })?
-            );
+            let cert_manager = Arc::new(SslManager::new(ssl_config).await.map_err(|e| {
+                GatewayError::SslError(format!("Failed to initialize SSL manager: {}", e))
+            })?);
 
-            let default_cert = config.server.tls.as_ref()
+            let default_cert = config
+                .server
+                .tls
+                .as_ref()
                 .map(|tls| tls.cert_path.clone())
                 .unwrap_or_else(|| "/etc/ssl/certs/gateway.crt".to_string());
-            let default_key = config.server.tls.as_ref()
+            let default_key = config
+                .server
+                .tls
+                .as_ref()
                 .map(|tls| tls.key_path.clone())
                 .unwrap_or_else(|| "/etc/ssl/private/gateway.key".to_string());
-            let require_client_cert = config.server.tls.as_ref()
+            let require_client_cert = config
+                .server
+                .tls
+                .as_ref()
                 .map(|tls| tls.require_client_cert)
                 .unwrap_or(false);
-            let client_ca = config.server.tls.as_ref()
+            let client_ca = config
+                .server
+                .tls
+                .as_ref()
                 .and_then(|tls| tls.ca_path.clone());
 
             let pingora_ssl = Arc::new(
@@ -294,7 +314,7 @@ impl PingoraGateway {
                     require_client_cert,
                     client_ca,
                 )
-                .await?
+                .await?,
             );
 
             (Some(pingora_ssl), Some(cert_manager))
@@ -303,8 +323,7 @@ impl PingoraGateway {
         };
 
         // Create Pingora server
-        let opt = config_adapter.generate_pingora_opts();
-        let mut server = Server::new(Some(opt)).map_err(|e| {
+        let mut server = Server::new(None).map_err(|e| {
             GatewayError::ProxyError(format!("Failed to create Pingora server: {}", e))
         })?;
 
@@ -312,7 +331,16 @@ impl PingoraGateway {
         server.bootstrap();
 
         // Add services to the server
-        Self::add_services(&mut server, &config_adapter, waf.clone(), cache.clone(), auth.clone(), monitoring.clone(), plugins.clone()).await?;
+        Self::add_services(
+            &mut server,
+            &config_adapter,
+            waf.clone(),
+            cache.clone(),
+            auth.clone(),
+            monitoring.clone(),
+            plugins.clone(),
+        )
+        .await?;
 
         Ok(Self {
             server,
@@ -339,10 +367,10 @@ impl PingoraGateway {
         _plugins: Arc<PluginManager>,
     ) -> Result<()> {
         info!("Services configuration completed");
-        
+
         // TODO: Add actual service registration when Pingora service APIs are stable
         warn!("Service registration is simplified in this version");
-        
+
         Ok(())
     }
 
@@ -372,7 +400,9 @@ impl PingoraGateway {
         self.config_adapter.update_config(new_config)?;
 
         // TODO: Implement hot reload of services
-        warn!("Configuration updated - server restart may be required for all changes to take effect");
+        warn!(
+            "Configuration updated - server restart may be required for all changes to take effect"
+        );
 
         Ok(())
     }
@@ -420,30 +450,35 @@ impl PingoraGateway {
         let mut stats = std::collections::HashMap::new();
 
         // Basic server info
-        stats.insert("server".to_string(), serde_json::json!({
-            "version": "0.1.0",
-            "powered_by": "Pingora",
-            "uptime": "calculated_uptime_here"
-        }));
+        stats.insert(
+            "server".to_string(),
+            serde_json::json!({
+                "version": "0.1.0",
+                "powered_by": "Pingora",
+                "uptime": "calculated_uptime_here"
+            }),
+        );
 
         // Component health
-        stats.insert("health".to_string(), serde_json::json!({
-            "overall": self.health_check().await,
-            "waf": self.waf.is_healthy().await,
-            "cache": self.cache.is_healthy().await,
-            "database": self.database.is_healthy().await,
-            "auth": self.auth.is_healthy().await,
-            "monitoring": self.monitoring.is_healthy().await,
-            "plugins": self.plugins.is_healthy().await,
-        }));
+        stats.insert(
+            "health".to_string(),
+            serde_json::json!({
+                "overall": self.health_check().await,
+                "waf": self.waf.is_healthy().await,
+                "cache": self.cache.is_healthy().await,
+                "database": self.database.is_healthy().await,
+                "auth": self.auth.is_healthy().await,
+                "monitoring": self.monitoring.is_healthy().await,
+                "plugins": self.plugins.is_healthy().await,
+            }),
+        );
 
         // SSL info if enabled
         if let Some(ssl_config) = &self.ssl_config {
-            stats.insert("ssl".to_string(), serde_json::Value::Object(
-                ssl_config.get_ssl_stats().await.into_iter()
-                    .map(|(k, v)| (k, v))
-                    .collect()
-            ));
+            stats.insert(
+                "ssl".to_string(),
+                serde_json::Value::Object(ssl_config.get_ssl_stats().await.into_iter().collect()),
+            );
         }
 
         stats
@@ -453,11 +488,11 @@ impl PingoraGateway {
 /// Example function to demonstrate basic Pingora server setup
 ///
 /// This creates a simple server for testing and development.
-pub fn run_example_server() -> Result<(), Box<dyn std::error::Error>> {
+pub fn run_example_server() -> std::result::Result<(), Box<dyn std::error::Error>> {
     info!("Starting example Pingora server with default configuration");
 
     let config = GatewayConfig::default();
-    
+
     tokio::runtime::Runtime::new()?.block_on(async {
         let gateway = PingoraGateway::new(config).await?;
         gateway.run_forever();
@@ -473,13 +508,18 @@ mod tests {
     async fn test_pingora_gateway_creation() {
         let config = GatewayConfig::default();
         let result = PingoraGateway::new(config).await;
-        assert!(result.is_ok(), "Should be able to create complete PingoraGateway instance");
+        assert!(
+            result.is_ok(),
+            "Should be able to create complete PingoraGateway instance"
+        );
     }
 
     #[tokio::test]
     async fn test_configuration_access() {
         let config = GatewayConfig::default();
-        let gateway = PingoraGateway::new(config).await.expect("Should create gateway");
+        let gateway = PingoraGateway::new(config)
+            .await
+            .expect("Should create gateway");
         let _config = gateway.get_configuration();
         let _gateway_config = gateway.get_gateway_config();
         // Basic test to ensure configuration is accessible
@@ -488,7 +528,9 @@ mod tests {
     #[tokio::test]
     async fn test_health_check() {
         let config = GatewayConfig::default();
-        let gateway = PingoraGateway::new(config).await.expect("Should create gateway");
+        let gateway = PingoraGateway::new(config)
+            .await
+            .expect("Should create gateway");
         let _healthy = gateway.health_check().await;
         // Health check should work without errors
     }
@@ -496,7 +538,9 @@ mod tests {
     #[tokio::test]
     async fn test_stats() {
         let config = GatewayConfig::default();
-        let gateway = PingoraGateway::new(config).await.expect("Should create gateway");
+        let gateway = PingoraGateway::new(config)
+            .await
+            .expect("Should create gateway");
         let stats = gateway.get_stats().await;
         assert!(stats.contains_key("server"));
         assert!(stats.contains_key("health"));

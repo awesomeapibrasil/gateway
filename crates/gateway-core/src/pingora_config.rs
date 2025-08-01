@@ -3,8 +3,7 @@
 //! This module adapts the gateway's configuration system to work with Pingora's
 //! configuration model, providing seamless integration between both systems.
 
-use pingora::server::configuration::{Opt, ServerConf};
-use std::collections::HashMap;
+use pingora::server::configuration::ServerConf;
 use std::time::Duration;
 use tracing::{debug, info, warn};
 
@@ -31,23 +30,17 @@ impl PingoraConfigAdapter {
     }
 
     /// Build Pingora server configuration from gateway config
-    fn build_pingora_config(config: &GatewayConfig) -> Result<ServerConf> {
+    fn build_pingora_config(_config: &GatewayConfig) -> Result<ServerConf> {
         debug!("Building Pingora server configuration");
 
-        let mut pingora_conf = ServerConf::new();
-
-        // Basic server settings
-        pingora_conf.version = 1;
-        pingora_conf.daemon = false; // Run in foreground for container environments
-        pingora_conf.error_log = Some("/dev/stderr".to_string());
-        pingora_conf.pid_file = "/tmp/pingora.pid".to_string();
-
-        // Worker configuration
-        pingora_conf.threads = config.server.worker_threads;
-        pingora_conf.work_stealing = true;
+        // For now, return a basic ServerConf
+        // In a complete implementation, this would configure all Pingora settings
+        let pingora_conf = ServerConf::new();
 
         debug!("Pingora server configuration built successfully");
-        Ok(pingora_conf)
+        pingora_conf.ok_or_else(|| {
+            GatewayError::ConfigError("Failed to create Pingora server configuration".to_string())
+        })
     }
 
     /// Get the Pingora server configuration
@@ -77,25 +70,6 @@ impl PingoraConfigAdapter {
         Ok(())
     }
 
-    /// Generate Pingora command line options
-    pub fn generate_pingora_opts(&self) -> Opt {
-        debug!("Generating Pingora command line options");
-
-        let mut opt = Opt::default();
-        
-        // Set basic options
-        opt.daemon = false;
-        opt.nocapture = false;
-        opt.test = false;
-        opt.upgrade = false;
-
-        // Set configuration file path (will be generated dynamically)
-        opt.conf = Some("/tmp/pingora.conf".to_string());
-
-        debug!("Pingora command line options generated");
-        opt
-    }
-
     /// Generate Pingora service configuration
     pub fn generate_service_config(&self) -> PingoraServiceConfig {
         debug!("Generating Pingora service configuration");
@@ -103,8 +77,8 @@ impl PingoraConfigAdapter {
         PingoraServiceConfig {
             // HTTP listeners
             http_listeners: self.generate_http_listeners(),
-            
-            // HTTPS listeners  
+
+            // HTTPS listeners
             https_listeners: self.generate_https_listeners(),
 
             // Load balancer configuration
@@ -129,14 +103,22 @@ impl PingoraConfigAdapter {
         let mut listeners = Vec::new();
 
         // Parse bind address
-        if let Ok(addr) = self.gateway_config.server.bind_address.parse::<std::net::SocketAddr>() {
+        if let Ok(addr) = self
+            .gateway_config
+            .server
+            .bind_address
+            .parse::<std::net::SocketAddr>()
+        {
             listeners.push(HttpListenerConfig {
                 address: addr,
                 proxy_protocol: false,
                 ipv6_only: false,
             });
         } else {
-            warn!("Invalid bind address: {}", self.gateway_config.server.bind_address);
+            warn!(
+                "Invalid bind address: {}",
+                self.gateway_config.server.bind_address
+            );
             // Default fallback
             listeners.push(HttpListenerConfig {
                 address: "0.0.0.0:8080".parse().unwrap(),
@@ -154,22 +136,47 @@ impl PingoraConfigAdapter {
 
         if self.gateway_config.ssl.enabled {
             // Parse bind address and create HTTPS version
-            if let Ok(addr) = self.gateway_config.server.bind_address.parse::<std::net::SocketAddr>() {
-                let https_port = if addr.port() == 80 { 443 } else { addr.port() + 1 };
+            if let Ok(addr) = self
+                .gateway_config
+                .server
+                .bind_address
+                .parse::<std::net::SocketAddr>()
+            {
+                let https_port = if addr.port() == 80 {
+                    443
+                } else {
+                    addr.port() + 1
+                };
                 let https_addr = std::net::SocketAddr::new(addr.ip(), https_port);
-                
+
                 listeners.push(HttpsListenerConfig {
                     address: https_addr,
-                    cert_path: self.gateway_config.server.tls.as_ref()
+                    cert_path: self
+                        .gateway_config
+                        .server
+                        .tls
+                        .as_ref()
                         .map(|tls| tls.cert_path.clone())
                         .unwrap_or_else(|| "/etc/ssl/certs/gateway.crt".to_string()),
-                    key_path: self.gateway_config.server.tls.as_ref()
+                    key_path: self
+                        .gateway_config
+                        .server
+                        .tls
+                        .as_ref()
                         .map(|tls| tls.key_path.clone())
                         .unwrap_or_else(|| "/etc/ssl/private/gateway.key".to_string()),
-                    require_client_cert: self.gateway_config.server.tls.as_ref()
+                    require_client_cert: self
+                        .gateway_config
+                        .server
+                        .tls
+                        .as_ref()
                         .map(|tls| tls.require_client_cert)
                         .unwrap_or(false),
-                    ca_path: self.gateway_config.server.tls.as_ref()
+                    ca_path: self
+                        .gateway_config
+                        .server
+                        .tls
+                        .as_ref()
                         .and_then(|tls| tls.ca_path.clone()),
                 });
             }
@@ -211,9 +218,17 @@ impl PingoraConfigAdapter {
     fn generate_circuit_breaker_config(&self) -> CircuitBreakerConfig {
         CircuitBreakerConfig {
             enabled: self.gateway_config.upstream.circuit_breaker.enabled,
-            failure_threshold: self.gateway_config.upstream.circuit_breaker.failure_threshold,
+            failure_threshold: self
+                .gateway_config
+                .upstream
+                .circuit_breaker
+                .failure_threshold,
             timeout: self.gateway_config.upstream.circuit_breaker.timeout,
-            half_open_max_calls: self.gateway_config.upstream.circuit_breaker.half_open_max_calls,
+            half_open_max_calls: self
+                .gateway_config
+                .upstream
+                .circuit_breaker
+                .half_open_max_calls,
         }
     }
 
@@ -236,27 +251,38 @@ impl PingoraConfigAdapter {
 
         // Check for unsupported features
         if self.gateway_config.plugins.enabled && !self.gateway_config.plugins.plugins.is_empty() {
-            warnings.push("Some plugin features may need adaptation for Pingora integration".to_string());
+            warnings.push(
+                "Some plugin features may need adaptation for Pingora integration".to_string(),
+            );
         }
 
         if self.gateway_config.ingress.enabled {
-            warnings.push("Ingress controller functionality may need specific Pingora integration".to_string());
+            warnings.push(
+                "Ingress controller functionality may need specific Pingora integration"
+                    .to_string(),
+            );
         }
 
         // Check resource limits
         if self.gateway_config.server.max_connections > 100000 {
-            warnings.push("Very high connection limits may require system tuning for Pingora".to_string());
+            warnings.push(
+                "Very high connection limits may require system tuning for Pingora".to_string(),
+            );
         }
 
         // Check timeout configurations
         if self.gateway_config.server.connection_timeout < Duration::from_secs(1) {
-            warnings.push("Very short connection timeouts may cause issues with Pingora".to_string());
+            warnings
+                .push("Very short connection timeouts may cause issues with Pingora".to_string());
         }
 
         if warnings.is_empty() {
             info!("Pingora compatibility validation passed");
         } else {
-            warn!("Pingora compatibility validation found {} warnings", warnings.len());
+            warn!(
+                "Pingora compatibility validation found {} warnings",
+                warnings.len()
+            );
         }
 
         Ok(warnings)

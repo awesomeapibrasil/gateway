@@ -13,10 +13,12 @@
 //! ## Usage
 //!
 //! ```rust,no_run
-//! use gateway_core::pingora_adapter::PingoraGateway;
+//! use gateway_core::{GatewayConfig, pingora_adapter::PingoraGateway};
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let gateway = PingoraGateway::new("MyGateway")?;
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let config = GatewayConfig::default();
+//!     let gateway = PingoraGateway::new(config).await?;
 //!     gateway.run_forever();
 //!     Ok(())
 //! }

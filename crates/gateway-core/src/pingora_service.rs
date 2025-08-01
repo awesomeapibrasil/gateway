@@ -4,9 +4,6 @@
 //! with all gateway components including WAF, authentication, caching, monitoring, and plugins.
 
 use std::sync::Arc;
-use tracing::{debug, error, info, warn};
-
-use crate::error::{GatewayError, Result};
 use gateway_auth::AuthManager;
 use gateway_cache::CacheManager;
 use gateway_monitoring::MonitoringManager;
@@ -54,16 +51,22 @@ impl PingoraHttpService {
     /// Get service statistics
     pub async fn get_stats(&self) -> std::collections::HashMap<String, serde_json::Value> {
         let mut stats = std::collections::HashMap::new();
-        
-        stats.insert("healthy".to_string(), serde_json::Value::Bool(self.health_check().await));
-        stats.insert("components".to_string(), serde_json::json!({
-            "waf": "enabled",
-            "cache": "enabled", 
-            "auth": "enabled",
-            "monitoring": "enabled",
-            "plugins": "enabled"
-        }));
-        
+
+        stats.insert(
+            "healthy".to_string(),
+            serde_json::Value::Bool(self.health_check().await),
+        );
+        stats.insert(
+            "components".to_string(),
+            serde_json::json!({
+                "waf": "enabled",
+                "cache": "enabled",
+                "auth": "enabled",
+                "monitoring": "enabled",
+                "plugins": "enabled"
+            }),
+        );
+
         stats
     }
 }
