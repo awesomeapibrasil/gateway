@@ -27,6 +27,9 @@ pub enum GatewayError {
     #[error("Plugin error: {0}")]
     PluginError(String),
 
+    #[error("SSL/TLS error: {0}")]
+    SslError(String),
+
     #[error("Network error: {0}")]
     NetworkError(String),
 

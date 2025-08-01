@@ -5,7 +5,7 @@
 //! with WAF, caching, database, and monitoring components.
 //!
 //! # Pingora Integration
-//! 
+//!
 //! This library now includes direct integration with Cloudflare's Pingora framework
 //! for high-performance networking. The `pingora_adapter` module provides the basic
 //! integration skeleton and can be extended for full production use.
@@ -15,8 +15,11 @@
 //! ```rust,no_run
 //! use gateway_core::pingora_adapter::PingoraGateway;
 //!
-//! let gateway = PingoraGateway::new("MyGateway")?;
-//! gateway.run_forever();
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let gateway = PingoraGateway::new("MyGateway")?;
+//!     gateway.run_forever();
+//!     Ok(())
+//! }
 //! ```
 //!
 //! ## Integration Status
@@ -24,7 +27,7 @@
 //! - ✅ Basic Pingora server initialization
 //! - ✅ Configuration structure foundation
 //! - 🚧 HTTP service integration (planned)
-//! - 🚧 Proxy service integration (planned) 
+//! - 🚧 Proxy service integration (planned)
 //! - 🚧 WAF processing integration (planned)
 //! - 🚧 Load balancing integration (planned)
 //! - 🚧 SSL/TLS integration (planned)
@@ -39,6 +42,10 @@ pub mod error;
 pub mod gateway;
 pub mod ingress;
 pub mod pingora_adapter;
+pub mod pingora_config;
+pub mod pingora_proxy;
+pub mod pingora_service;
+pub mod pingora_ssl;
 pub mod proxy;
 pub mod server;
 pub mod types;

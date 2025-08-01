@@ -1740,6 +1740,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "bytes",
  "chrono",
  "clap 4.5.41",
  "config",
@@ -1758,6 +1759,7 @@ dependencies = [
  "pingora-core",
  "pingora-load-balancing",
  "pingora-proxy",
+ "reqwest",
  "serde",
  "serde_json",
  "serde_yaml 0.9.34+deprecated",
@@ -3356,6 +3358,8 @@ checksum = "0d793bb3f61d3aacb02b10d0e32724f5b4f1d3fcf2f51efc4188a1a6a5810606"
 dependencies = [
  "pingora-core",
  "pingora-http",
+ "pingora-load-balancing",
+ "pingora-proxy",
  "pingora-timeout",
 ]
 

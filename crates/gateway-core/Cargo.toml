@@ -6,7 +6,7 @@ license = "MIT"
 
 [dependencies]
 # Pingora dependencies - now available for high-performance networking
-pingora = { workspace = true }
+pingora = { workspace = true, features = ["lb", "proxy"] }
 pingora-core = { workspace = true }
 pingora-proxy = { workspace = true }
 pingora-load-balancing = { workspace = true }
@@ -29,6 +29,8 @@ dashmap = { workspace = true }
 once_cell = { workspace = true }
 url = { workspace = true }
 chrono = { workspace = true }
+bytes = "1.0"
+reqwest = { workspace = true }
 
 # Local dependencies
 gateway-waf = { path = "../gateway-waf" }

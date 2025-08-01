@@ -1,5 +1,5 @@
 use clap::Parser;
-use gateway_core::{Gateway, GatewayConfig, pingora_adapter};
+use gateway_core::{pingora_adapter, Gateway, GatewayConfig};
 use std::process;
 use tracing::{error, info};
 
@@ -24,9 +24,9 @@ struct Args {
     #[arg(short, long, default_value = "0.0.0.0:8080")]
     bind: String,
 
-    /// Run Pingora example server
+    /// Run complete Pingora integration
     #[arg(long)]
-    pingora_example: bool,
+    pingora: bool,
 }
 
 #[tokio::main]
@@ -48,10 +48,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Starting Pingora-based API Gateway v0.1.0");
 
-    // Check if user wants to run Pingora example
-    if args.pingora_example {
-        info!("Running Pingora integration example...");
-        return pingora_adapter::run_example_server();
+    // Check if user wants to run Pingora integration
+    if args.pingora {
+        info!("Running complete Pingora integration...");
+        return tokio::runtime::Runtime::new()?.block_on(async {
+            // Load configuration
+            let config = match GatewayConfig::from_file(&args.config) {
+                Ok(mut config) => {
+                    // Override config with CLI args
+                    config.server.bind_address = args.bind.clone();
+                    config.server.worker_threads = args.workers;
+                    config.server.debug = args.debug;
+                    config
+                }
+                Err(e) => {
+                    error!("Failed to load configuration from {}: {}", args.config, e);
+                    process::exit(1);
+                }
+            };
+
+            info!("Configuration loaded successfully");
+            info!("Binding to: {}", config.server.bind_address);
+            info!("Worker threads: {}", config.server.worker_threads);
+
+            let gateway = pingora_adapter::PingoraGateway::new(config).await?;
+            gateway.run_forever();
+            Ok(())
+        });
     }
 
     // Load configuration
