@@ -2,6 +2,8 @@
 
 Gateway is a high-performance API Gateway and Ingress Controller built with Rust, designed for cloud-native environments. It provides comprehensive Web Application Firewall (WAF) capabilities, distributed caching, and enterprise-grade features.
 
+> **⚡ New: Pingora Integration** - Gateway now includes direct integration with Cloudflare's Pingora framework for maximum performance and reliability. See the [Pingora Integration](#-pingora-integration) section for details.
+
 ## 🚀 Features
 
 ### Core Features
@@ -61,6 +63,18 @@ docker run -p 8080:8080 -p 9090:9090 gcr.io/awesomeapibrasil/gateway:latest
 docker run -p 8080:8080 -p 9090:9090 \
   -v $(pwd)/config:/app/config \
   gcr.io/awesomeapibrasil/gateway:latest
+```
+
+### Native Binary with Pingora
+```bash
+# Build the gateway with Pingora support
+cargo build --release
+
+# Run basic Pingora example server
+cargo run --bin gateway -- --pingora-example
+
+# Run with standard gateway configuration
+cargo run --bin gateway -- --config config/gateway.yaml
 ```
 
 ### Kubernetes with Helm
@@ -265,7 +279,10 @@ cargo build
 # Run tests
 cargo test
 
-# Run the gateway
+# Test Pingora integration
+cargo run --bin gateway -- --pingora-example
+
+# Run the standard gateway
 cargo run -- --config config/gateway.yaml
 ```
 
