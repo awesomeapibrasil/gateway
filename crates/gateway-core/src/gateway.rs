@@ -163,6 +163,9 @@ impl Gateway {
                 max_body_size: config_read.waf.modsecurity.max_body_size,
                 blocking_mode: config_read.waf.modsecurity.blocking_mode,
                 rule_update_interval: config_read.waf.modsecurity.rule_update_interval,
+                auto_update_owasp_crs: config_read.waf.modsecurity.auto_update_owasp_crs,
+                owasp_crs_repo_url: config_read.waf.modsecurity.owasp_crs_repo_url.clone(),
+                owasp_crs_version: config_read.waf.modsecurity.owasp_crs_version.clone(),
             },
         };
         let waf = Arc::new(

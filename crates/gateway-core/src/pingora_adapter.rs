@@ -193,6 +193,9 @@ impl PingoraGateway {
                 max_body_size: config.waf.modsecurity.max_body_size,
                 blocking_mode: config.waf.modsecurity.blocking_mode,
                 rule_update_interval: config.waf.modsecurity.rule_update_interval,
+                auto_update_owasp_crs: config.waf.modsecurity.auto_update_owasp_crs,
+                owasp_crs_repo_url: config.waf.modsecurity.owasp_crs_repo_url.clone(),
+                owasp_crs_version: config.waf.modsecurity.owasp_crs_version.clone(),
             },
         };
         let waf = Arc::new(

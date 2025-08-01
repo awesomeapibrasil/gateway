@@ -72,7 +72,7 @@ mod tests {
         let engine = create_test_engine().await;
 
         // Test multiple SQL injection vectors
-        let sql_injection_vectors = vec![
+        let sql_injection_vectors = [
             "/api/users?id=1' OR '1'='1",
             "/api/users?id=1; DROP TABLE users--",
             "/api/users?id=1 UNION SELECT * FROM passwords",

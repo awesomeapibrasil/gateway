@@ -92,9 +92,8 @@ impl ModSecRule {
         let mut parts = Vec::new();
         let mut current_part = String::new();
         let mut in_quotes = false;
-        let mut chars = line.chars().peekable();
 
-        while let Some(ch) = chars.next() {
+        for ch in line.chars() {
             match ch {
                 '"' => {
                     if in_quotes {
@@ -635,7 +634,7 @@ impl ModSecurityEngine {
 
         // Download and update OWASP CRS rules if enabled
         if config.auto_update_owasp_crs {
-            match Self::download_owasp_crs_rules(&*config).await {
+            match Self::download_owasp_crs_rules(&config).await {
                 Ok(updated) => {
                     if updated {
                         info!("OWASP CRS rules updated from repository during rule refresh");

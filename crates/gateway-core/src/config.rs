@@ -168,6 +168,9 @@ pub struct ModSecurityConfig {
     pub max_body_size: usize,
     pub blocking_mode: bool,
     pub rule_update_interval: u64,
+    pub auto_update_owasp_crs: bool,
+    pub owasp_crs_repo_url: String,
+    pub owasp_crs_version: String,
 }
 
 /// Rate limiting configuration
@@ -362,6 +365,9 @@ impl Default for ModSecurityConfig {
             max_body_size: 1024 * 1024, // 1MB
             blocking_mode: true,
             rule_update_interval: 300, // 5 minutes
+            auto_update_owasp_crs: true,
+            owasp_crs_repo_url: "https://github.com/coreruleset/coreruleset".to_string(),
+            owasp_crs_version: "v4.3.0".to_string(),
         }
     }
 }
