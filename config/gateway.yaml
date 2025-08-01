@@ -86,6 +86,16 @@ waf:
     - "MaliciousScanner"
   max_request_size: 10485760  # 10MB
   block_malicious_ips: true
+  
+  # ModSecurity Configuration
+  modsecurity:
+    enabled: true
+    rules_path: "config/modsecurity/custom"
+    owasp_crs_path: "config/modsecurity/owasp-crs"
+    debug_log_level: 3
+    max_body_size: 1048576  # 1MB
+    blocking_mode: true
+    rule_update_interval: 300  # 5 minutes
 
 cache:
   enabled: true

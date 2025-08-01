@@ -3,6 +3,7 @@ use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
 
 use crate::ip_filter::IpFilter;
+use crate::modsecurity_engine::ModSecurityEngine;
 use crate::rate_limiter::RateLimiter;
 use crate::rules::WafRuleSet;
 use crate::{RequestContext, Result, WafConfig, WafResult, WafStats};
@@ -15,6 +16,7 @@ pub struct WafEngine {
     rules: Arc<RwLock<WafRuleSet>>,
     rate_limiter: Arc<RateLimiter>,
     ip_filter: Arc<IpFilter>,
+    modsecurity: Arc<ModSecurityEngine>,
     stats: Arc<RwLock<WafStats>>,
     database: Arc<DatabaseManager>,
 }
@@ -38,11 +40,15 @@ impl WafEngine {
             Arc::new(RateLimiter::new(&config.rate_limiting, database.clone()).await?);
         let ip_filter = Arc::new(IpFilter::new(&config.ip_whitelist, &config.ip_blacklist));
 
+        // Initialize ModSecurity engine
+        let modsecurity = Arc::new(ModSecurityEngine::new(&config.modsecurity).await?);
+
         Ok(Self {
             config: Arc::new(RwLock::new(config.clone())),
             rules: Arc::new(RwLock::new(rules)),
             rate_limiter,
             ip_filter,
+            modsecurity,
             stats: Arc::new(RwLock::new(WafStats::default())),
             database,
         })
@@ -141,7 +147,28 @@ impl WafEngine {
             ));
         }
 
-        // 7. Custom rules evaluation
+        // 7. ModSecurity evaluation
+        match self.modsecurity.evaluate_request(request).await {
+            Ok(WafResult::Block(reason)) => {
+                let mut stats = self.stats.write().await;
+                stats.blocked_requests += 1;
+                return Ok(WafResult::Block(reason));
+            }
+            Ok(WafResult::Log(message)) => {
+                info!("ModSecurity triggered: {}", message);
+            }
+            Ok(WafResult::Allow) => {}
+            Ok(WafResult::RateLimit(reason)) => {
+                let mut stats = self.stats.write().await;
+                stats.rate_limited_requests += 1;
+                return Ok(WafResult::RateLimit(reason));
+            }
+            Err(e) => {
+                warn!("ModSecurity evaluation error: {}", e);
+            }
+        }
+
+        // 8. Custom rules evaluation
         let rules = self.rules.read().await;
         for rule in &rules.rules {
             match rule.evaluate(request).await {
@@ -237,6 +264,15 @@ impl WafEngine {
             .update_lists(&new_config.ip_whitelist, &new_config.ip_blacklist)
             .await;
 
+        // Update ModSecurity configuration
+        if let Err(e) = self
+            .modsecurity
+            .update_config(&new_config.modsecurity)
+            .await
+        {
+            warn!("Failed to update ModSecurity config: {}", e);
+        }
+
         info!("WAF configuration updated successfully");
         Ok(())
     }
@@ -244,7 +280,9 @@ impl WafEngine {
     /// Check if WAF is healthy
     pub async fn is_healthy(&self) -> bool {
         // Check if all components are functioning
-        self.rate_limiter.is_healthy().await && self.ip_filter.is_healthy().await
+        self.rate_limiter.is_healthy().await
+            && self.ip_filter.is_healthy().await
+            && self.modsecurity.is_healthy().await
     }
 
     /// Reload WAF rules from file
@@ -276,5 +314,16 @@ impl WafEngine {
             info!("WAF rule {} removed", rule_id);
         }
         Ok(removed)
+    }
+
+    /// Update ModSecurity rules dynamically
+    pub async fn update_modsecurity_rules(&self) -> Result<()> {
+        info!("Updating ModSecurity rules");
+        self.modsecurity.update_rules().await
+    }
+
+    /// Get ModSecurity statistics
+    pub async fn get_modsecurity_stats(&self) -> crate::modsecurity_engine::ModSecurityStats {
+        self.modsecurity.get_stats().await
     }
 }

@@ -40,6 +40,7 @@ async fn test_waf_sql_injection_detection() {
         blocked_user_agents: vec![],
         max_request_size: 10485760,
         block_malicious_ips: true,
+        modsecurity: gateway_waf::ModSecurityConfig::default(),
     };
 
     let database = std::sync::Arc::new(DatabaseManager::disabled());
@@ -92,6 +93,7 @@ async fn test_waf_legitimate_request() {
         blocked_user_agents: vec![],
         max_request_size: 10485760,
         block_malicious_ips: true,
+        modsecurity: gateway_waf::ModSecurityConfig::default(),
     };
 
     let database = std::sync::Arc::new(DatabaseManager::disabled());

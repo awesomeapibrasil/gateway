@@ -19,14 +19,19 @@
 pub mod engine;
 pub mod header_filter;
 pub mod ip_filter;
+pub mod modsecurity_engine;
 pub mod patterns;
 pub mod rate_limiter;
 pub mod rules;
 pub mod url_filter;
 
+#[cfg(test)]
+mod modsecurity_tests;
+
 pub use engine::WafEngine;
 pub use header_filter::HeaderFilter;
 pub use ip_filter::IpFilter;
+pub use modsecurity_engine::{ModSecurityConfig, ModSecurityEngine, ModSecurityStats};
 pub use rate_limiter::{RateLimitKey, RateLimiter};
 pub use rules::{RuleAction, RuleCondition, WafRule, WafRuleSet};
 pub use url_filter::UrlFilter;
@@ -47,6 +52,25 @@ pub struct WafConfig {
     pub blocked_user_agents: Vec<String>,
     pub max_request_size: usize,
     pub block_malicious_ips: bool,
+    /// ModSecurity configuration
+    pub modsecurity: crate::modsecurity_engine::ModSecurityConfig,
+}
+
+impl Default for WafConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            rules_path: "config/waf-rules.yaml".to_string(),
+            rate_limiting: RateLimitConfig::default(),
+            ip_whitelist: Vec::new(),
+            ip_blacklist: Vec::new(),
+            blocked_headers: Vec::new(),
+            blocked_user_agents: Vec::new(),
+            max_request_size: 10 * 1024 * 1024, // 10MB
+            block_malicious_ips: true,
+            modsecurity: crate::modsecurity_engine::ModSecurityConfig::default(),
+        }
+    }
 }
 
 /// Rate limiting configuration
@@ -57,6 +81,18 @@ pub struct RateLimitConfig {
     pub burst_limit: u32,
     pub window_size: std::time::Duration,
     pub storage_backend: String,
+}
+
+impl Default for RateLimitConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            requests_per_minute: 1000,
+            burst_limit: 100,
+            window_size: std::time::Duration::from_secs(60),
+            storage_backend: "memory".to_string(),
+        }
+    }
 }
 
 /// WAF evaluation result
