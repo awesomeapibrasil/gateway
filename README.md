@@ -1,4 +1,4 @@
-# Gateway - High-Performance API Gateway & Ingress Controller
+# Gateway - High Performance API Gateway focused on Security/WAF
 
 Gateway is a high-performance API Gateway and Ingress Controller built with Rust, designed for cloud-native environments. It provides comprehensive Web Application Firewall (WAF) capabilities, distributed caching, and enterprise-grade features.
 

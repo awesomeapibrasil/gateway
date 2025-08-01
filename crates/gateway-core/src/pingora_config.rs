@@ -30,17 +30,33 @@ impl PingoraConfigAdapter {
     }
 
     /// Build Pingora server configuration from gateway config
-    fn build_pingora_config(_config: &GatewayConfig) -> Result<ServerConf> {
+    fn build_pingora_config(config: &GatewayConfig) -> Result<ServerConf> {
         debug!("Building Pingora server configuration");
 
-        // For now, return a basic ServerConf
-        // In a complete implementation, this would configure all Pingora settings
-        let pingora_conf = ServerConf::new();
+        // Create a comprehensive ServerConf based on gateway config
+        let mut pingora_conf = ServerConf::new()
+            .ok_or_else(|| {
+                GatewayError::ConfigError("Failed to create Pingora server configuration".to_string())
+            })?;
+
+        // Configure threading based on server settings
+        pingora_conf.threads = config.server.worker_threads;
+
+        // Configure graceful shutdown based on gateway config
+        pingora_conf.grace_period_seconds = Some(config.server.graceful_shutdown_timeout.as_secs());
+        pingora_conf.graceful_shutdown_timeout_seconds = Some(10);
+
+        // Configure error log
+        pingora_conf.error_log = Some("/var/log/gateway/error.log".to_string());
+
+        // Configure PID file
+        pingora_conf.pid_file = "/var/run/gateway.pid".to_string();
+
+        // Configure upgrade socket for zero-downtime deployment
+        pingora_conf.upgrade_sock = "/tmp/gateway_upgrade.sock".to_string();
 
         debug!("Pingora server configuration built successfully");
-        pingora_conf.ok_or_else(|| {
-            GatewayError::ConfigError("Failed to create Pingora server configuration".to_string())
-        })
+        Ok(pingora_conf)
     }
 
     /// Get the Pingora server configuration

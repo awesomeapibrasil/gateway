@@ -3,12 +3,12 @@
 //! This module provides a basic HTTP service implementation using Pingora that integrates
 //! with all gateway components including WAF, authentication, caching, monitoring, and plugins.
 
-use std::sync::Arc;
 use gateway_auth::AuthManager;
 use gateway_cache::CacheManager;
 use gateway_monitoring::MonitoringManager;
 use gateway_plugins::PluginManager;
 use gateway_waf::WafEngine;
+use std::sync::Arc;
 
 /// Basic HTTP service with gateway integration
 pub struct PingoraHttpService {

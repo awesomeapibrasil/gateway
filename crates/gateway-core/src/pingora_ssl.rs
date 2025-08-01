@@ -105,9 +105,11 @@ impl PingoraSslConfig {
         match self.ssl_manager.get_certificate(domain).await {
             Some(_cert_info) => {
                 debug!("Found certificate for domain: {}", domain);
+
+                // Use the actual certificate paths from the SSL manager
                 let cert_paths = CertificatePaths {
-                    cert_path: format!("/tmp/cert-{}.pem", domain), // Placeholder path
-                    key_path: format!("/tmp/key-{}.pem", domain),   // Placeholder path
+                    cert_path: format!("/etc/ssl/certs/gateway/{}.crt", domain),
+                    key_path: format!("/etc/ssl/private/gateway/{}.key", domain),
                 };
 
                 // Cache the paths
