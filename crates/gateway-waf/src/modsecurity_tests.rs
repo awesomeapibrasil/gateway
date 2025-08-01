@@ -212,7 +212,7 @@ mod tests {
                     }
                 }
                 WafResult::RateLimit(_) => {
-                    // Rate limiting is fine for legitimate requests 
+                    // Rate limiting is fine for legitimate requests
                     println!("✓ Request {} {} rate limited (acceptable)", method, uri);
                 }
             }
