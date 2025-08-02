@@ -18,8 +18,15 @@ pingora-core = "0.5.0"
 pingora-proxy = "0.5.0"
 pingora-load-balancing = "0.5.0"
 
+# gRPC dependencies for Gateway-Worker communication
+tonic = "0.12"
+tonic-build = "0.12"
+prost = "0.13"
+prost-types = "0.13"
+
 # Async runtime
 tokio = { version = "1.0", features = ["full"] }
+tokio-stream = "0.1"
 async-trait = "0.1"
 
 # Serialization

@@ -2,6 +2,8 @@
 
 Gateway is a high-performance API Gateway and Ingress Controller built with Rust, designed for cloud-native environments. It provides comprehensive Web Application Firewall (WAF) capabilities, distributed caching, and enterprise-grade features.
 
+> **⚡ New: Worker Service Architecture** - Gateway now communicates with a dedicated external Worker service (written in Go) for background tasks as described in [WORKER-PURPOSE.md](WORKER-PURPOSE.md). The Worker service is available at [https://github.com/awesomeapibrasil/gateway-worker](https://github.com/awesomeapibrasil/gateway-worker). This separation ensures optimal performance for real-time proxy operations while handling certificate management, configuration updates, and log processing asynchronously.
+
 > **⚡ New: Pingora Integration** - Gateway now includes direct integration with Cloudflare's Pingora framework for maximum performance and reliability. See the [Pingora Integration](#-pingora-integration) section for details.
 
 ## 🚀 Features
@@ -54,7 +56,9 @@ Gateway is a high-performance API Gateway and Ingress Controller built with Rust
 
 ## 🔧 Quick Start
 
-### Docker
+### Gateway Service (Real-time Proxy)
+
+#### Docker
 ```bash
 # Run with default configuration
 docker run -p 8080:8080 -p 9090:9090 gcr.io/awesomeapibrasil/gateway:latest
@@ -65,7 +69,7 @@ docker run -p 8080:8080 -p 9090:9090 \
   gcr.io/awesomeapibrasil/gateway:latest
 ```
 
-### Native Binary with Pingora
+#### Native Binary with Pingora
 ```bash
 # Build the gateway with Pingora support
 cargo build --release
@@ -77,12 +81,33 @@ cargo run --bin gateway -- --pingora-example
 cargo run --bin gateway -- --config config/gateway.yaml
 ```
 
+### Worker Service (Background Tasks)
+
+**Note**: The Worker service is a separate Go application available at [https://github.com/awesomeapibrasil/gateway-worker](https://github.com/awesomeapibrasil/gateway-worker). Please refer to that repository for installation and setup instructions.
+
+The Gateway service communicates with the Worker service via gRPC for background operations such as:
+- Certificate management and ACME renewal
+- Configuration updates and validation  
+- Log processing and analytics
+- Security event correlation
+
+#### Worker Service Setup
+
+```bash
+# Clone the Worker service repository
+git clone https://github.com/awesomeapibrasil/gateway-worker.git
+cd gateway-worker
+
+# Follow the setup instructions in the Worker repository
+# The Worker service runs on port 50051 by default for gRPC communication
+```
+
 ### Kubernetes with Helm
 ```bash
 # Add the Helm repository
 helm repo add gateway https://github.com/awesomeapibrasil/gateway/releases/download/helm-charts
 
-# Install the chart
+# Install Gateway service (Worker service is separate)
 helm install gateway gateway/gateway
 
 # Install with custom values
@@ -91,13 +116,20 @@ helm install gateway gateway/gateway -f values.yaml
 
 ## ⚙️ Configuration
 
-Gateway uses YAML configuration files. See the [Configuration Guide](docs/configuration/README.md) for detailed information.
+Gateway uses YAML configuration files for the Gateway service. The Worker service configuration is managed in its separate repository. See the [Configuration Guide](docs/configuration/README.md) for detailed information.
 
-### Basic Configuration
+### Gateway Configuration
 ```yaml
 server:
   bind_address: "0.0.0.0:8080"
   worker_threads: 4
+
+# External Worker service connection (Go service)
+worker:
+  address: "http://localhost:50051"
+  enable_tls: true
+  cert_path: "/etc/gateway/worker-client-cert.pem"
+  key_path: "/etc/gateway/worker-client-key.pem"
 
 waf:
   enabled: true
@@ -112,8 +144,12 @@ upstream:
       weight: 1
 ```
 
+### Worker Configuration
+
+**Note**: Worker service configuration is managed in the separate Go service repository at [https://github.com/awesomeapibrasil/gateway-worker](https://github.com/awesomeapibrasil/gateway-worker). Refer to that repository for Worker configuration details.
+
 ### Environment Variables
-- `GATEWAY_CONFIG`: Configuration file path (default: `config/gateway.yaml`)
+- `GATEWAY_CONFIG`: Gateway configuration file path (default: `config/gateway.yaml`)
 - `RUST_LOG`: Log level (default: `info`)
 - `DATABASE_URL`: Database connection string
 - `JWT_SECRET`: JWT signing secret
@@ -215,24 +251,50 @@ Structured JSON logging with configurable levels:
 
 ## 🏗️ Architecture
 
-Gateway is built with a modular architecture, now featuring direct integration with Cloudflare's Pingora framework:
+Gateway implements a two-service architecture as described in [WORKER-PURPOSE.md](WORKER-PURPOSE.md), featuring direct integration with Cloudflare's Pingora framework:
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Client        │────│   Gateway       │────│   Backend       │
 │   Requests      │    │   (Rust/Pingora)│    │   Services      │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
-                              │
+                              │ gRPC/gRPCS
                     ┌─────────┼─────────┐
                     │         │         │
             ┌───────▼──┐ ┌────▼───┐ ┌───▼────┐
             │   WAF    │ │ Cache  │ │  Auth  │
             │ Engine   │ │Manager │ │Manager │
             └──────────┘ └────────┘ └────────┘
+                              │
+                    ┌─────────▼─────────┐
+                    │   Worker Service  │
+                    │ (Background Tasks)│
+                    └───────────────────┘
 ```
+
+### Service Separation
+
+**Gateway Service** (Real-time Operations):
+- HTTP/HTTPS proxy with Pingora
+- WAF processing and security enforcement
+- Load balancing and routing
+- Rate limiting and authentication
+- Real-time request/response handling
+
+**Worker Service** (External Go Service - Background Tasks):
+- Certificate management and ACME renewal
+- Configuration management and validation
+- Log processing and analytics
+- Security event correlation
+- Database operations and maintenance
+
+**Repository**: [https://github.com/awesomeapibrasil/gateway-worker](https://github.com/awesomeapibrasil/gateway-worker)
+
+For detailed information about the architecture, responsibilities, and communication patterns, see [WORKER-PURPOSE.md](WORKER-PURPOSE.md).
 
 ### Components
 - **Gateway Core**: Main proxy engine powered by Pingora
+- **External Worker Service** (Go): Background task processor for certificates, config, and logs
 - **WAF Engine**: Web Application Firewall with ModSecurity integration
 - **Cache Manager**: Distributed caching
 - **Auth Manager**: Authentication and authorization
@@ -241,6 +303,7 @@ Gateway is built with a modular architecture, now featuring direct integration w
 - **Plugin Manager**: Extensible plugin system
 - **Pingora Adapter**: Direct integration with Cloudflare's Pingora framework
 - **ModSecurity Engine**: OWASP CRS compatible rule engine
+- **gRPC Communication**: Secure Gateway-Worker communication via gRPC/gRPCS
 
 ## 🚀 Pingora Integration
 
@@ -312,6 +375,8 @@ impl Plugin for CustomPlugin {
 
 ## 📚 Documentation
 
+- [Worker Service Architecture](WORKER-PURPOSE.md) - Detailed architecture and separation of responsibilities
+- [Integration Validation Checklist](INTEGRATION-VALIDATION.md) - Complete validation checklist for Gateway-Worker integration
 - [Installation Guide](docs/installation/README.md)
 - [Configuration Reference](docs/configuration/README.md)
 - [Deployment Guide](docs/deployment/README.md)
