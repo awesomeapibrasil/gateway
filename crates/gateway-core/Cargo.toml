@@ -11,6 +11,7 @@ pingora-core = { workspace = true }
 pingora-proxy = { workspace = true }
 pingora-load-balancing = { workspace = true }
 tokio = { workspace = true }
+tokio-stream = { workspace = true }
 async-trait = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -32,6 +33,11 @@ chrono = { workspace = true }
 bytes = "1.0"
 reqwest = { workspace = true }
 
+# gRPC client dependencies for Worker communication
+tonic = { workspace = true }
+prost = { workspace = true }
+prost-types = { workspace = true }
+
 # Local dependencies
 gateway-waf = { path = "../gateway-waf" }
 gateway-cache = { path = "../gateway-cache" }
@@ -40,6 +46,9 @@ gateway-auth = { path = "../gateway-auth" }
 gateway-monitoring = { path = "../gateway-monitoring" }
 gateway-plugins = { path = "../gateway-plugins" }
 gateway-ssl = { path = "../gateway-ssl" }
+
+[build-dependencies]
+tonic-build = { workspace = true }
 
 [[bin]]
 name = "gateway"

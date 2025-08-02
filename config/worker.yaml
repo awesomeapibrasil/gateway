@@ -1,0 +1,37 @@
+# Gateway Worker Service Configuration
+# This file configures the Worker service as described in WORKER-PURPOSE.md
+
+server:
+  bind_address: "0.0.0.0:8081"
+  worker_threads: 4
+  max_connections: 1000
+
+grpc:
+  listen_address: "0.0.0.0:50051"
+  tls_cert_path: "/etc/gateway/worker-cert.pem"
+  tls_key_path: "/etc/gateway/worker-key.pem"
+  enable_mtls: true
+  ca_cert_path: "/etc/gateway/ca-cert.pem"
+
+certificate:
+  acme_directory_url: "https://acme-v02.api.letsencrypt.org/directory"
+  acme_account_key_path: "/etc/gateway/acme-account.key"
+  certificate_storage_path: "/etc/gateway/certificates"
+  renewal_check_interval: 3600  # 1 hour
+  renewal_before_expiry_days: 30
+  temporary_cert_validity_days: 14
+
+database:
+  url: "postgresql://gateway:password@localhost/gateway_worker"
+  max_connections: 10
+  connection_timeout: 30
+
+redis:
+  url: "redis://localhost:6379"
+  max_connections: 10
+  connection_timeout: 10
+
+logging:
+  level: "info"
+  format: "json"
+  output: "stdout"

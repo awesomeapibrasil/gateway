@@ -2,6 +2,8 @@
 
 Gateway is a high-performance API Gateway and Ingress Controller built with Rust, designed for cloud-native environments. It provides comprehensive Web Application Firewall (WAF) capabilities, distributed caching, and enterprise-grade features.
 
+> **⚡ New: Worker Service Architecture** - Gateway now implements a two-service architecture with a dedicated Worker service for background tasks as described in [WORKER-PURPOSE.md](WORKER-PURPOSE.md). This separation ensures optimal performance for real-time proxy operations while handling certificate management, configuration updates, and log processing asynchronously.
+
 > **⚡ New: Pingora Integration** - Gateway now includes direct integration with Cloudflare's Pingora framework for maximum performance and reliability. See the [Pingora Integration](#-pingora-integration) section for details.
 
 ## 🚀 Features
@@ -54,7 +56,9 @@ Gateway is a high-performance API Gateway and Ingress Controller built with Rust
 
 ## 🔧 Quick Start
 
-### Docker
+### Gateway Service (Real-time Proxy)
+
+#### Docker
 ```bash
 # Run with default configuration
 docker run -p 8080:8080 -p 9090:9090 gcr.io/awesomeapibrasil/gateway:latest
@@ -65,7 +69,7 @@ docker run -p 8080:8080 -p 9090:9090 \
   gcr.io/awesomeapibrasil/gateway:latest
 ```
 
-### Native Binary with Pingora
+#### Native Binary with Pingora
 ```bash
 # Build the gateway with Pingora support
 cargo build --release
@@ -77,12 +81,34 @@ cargo run --bin gateway -- --pingora-example
 cargo run --bin gateway -- --config config/gateway.yaml
 ```
 
+### Worker Service (Background Tasks)
+
+#### Native Binary
+```bash
+# Build the worker service
+cargo build --release --bin gateway-worker
+
+# Run with default configuration
+cargo run --bin gateway-worker -- --config config/worker.yaml
+
+# Run in dry-run mode for configuration validation
+cargo run --bin gateway-worker -- --config config/worker.yaml --dry-run
+```
+
+#### Docker (Coming Soon)
+```bash
+# Worker service Docker image
+docker run -p 8081:8081 -p 50051:50051 \
+  -v $(pwd)/config:/app/config \
+  gcr.io/awesomeapibrasil/gateway-worker:latest
+```
+
 ### Kubernetes with Helm
 ```bash
 # Add the Helm repository
 helm repo add gateway https://github.com/awesomeapibrasil/gateway/releases/download/helm-charts
 
-# Install the chart
+# Install both Gateway and Worker services
 helm install gateway gateway/gateway
 
 # Install with custom values
@@ -91,13 +117,20 @@ helm install gateway gateway/gateway -f values.yaml
 
 ## ⚙️ Configuration
 
-Gateway uses YAML configuration files. See the [Configuration Guide](docs/configuration/README.md) for detailed information.
+Gateway uses YAML configuration files for both the Gateway service and Worker service. See the [Configuration Guide](docs/configuration/README.md) for detailed information.
 
-### Basic Configuration
+### Gateway Configuration
 ```yaml
 server:
   bind_address: "0.0.0.0:8080"
   worker_threads: 4
+
+# Worker service connection
+worker:
+  address: "http://localhost:50051"
+  enable_tls: true
+  cert_path: "/etc/gateway/worker-client-cert.pem"
+  key_path: "/etc/gateway/worker-client-key.pem"
 
 waf:
   enabled: true
@@ -112,8 +145,31 @@ upstream:
       weight: 1
 ```
 
+### Worker Configuration
+```yaml
+server:
+  bind_address: "0.0.0.0:8081"
+  worker_threads: 4
+
+grpc:
+  listen_address: "0.0.0.0:50051"
+  enable_mtls: true
+
+certificate:
+  acme_directory_url: "https://acme-v02.api.letsencrypt.org/directory"
+  renewal_before_expiry_days: 30
+  temporary_cert_validity_days: 14
+
+database:
+  url: "postgresql://gateway:password@localhost/gateway_worker"
+
+redis:
+  url: "redis://localhost:6379"
+```
+
 ### Environment Variables
-- `GATEWAY_CONFIG`: Configuration file path (default: `config/gateway.yaml`)
+- `GATEWAY_CONFIG`: Gateway configuration file path (default: `config/gateway.yaml`)
+- `GATEWAY_WORKER_CONFIG`: Worker configuration file path (default: `config/worker.yaml`)
 - `RUST_LOG`: Log level (default: `info`)
 - `DATABASE_URL`: Database connection string
 - `JWT_SECRET`: JWT signing secret
@@ -215,24 +271,48 @@ Structured JSON logging with configurable levels:
 
 ## 🏗️ Architecture
 
-Gateway is built with a modular architecture, now featuring direct integration with Cloudflare's Pingora framework:
+Gateway implements a two-service architecture as described in [WORKER-PURPOSE.md](WORKER-PURPOSE.md), featuring direct integration with Cloudflare's Pingora framework:
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Client        │────│   Gateway       │────│   Backend       │
 │   Requests      │    │   (Rust/Pingora)│    │   Services      │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
-                              │
+                              │ gRPC/gRPCS
                     ┌─────────┼─────────┐
                     │         │         │
             ┌───────▼──┐ ┌────▼───┐ ┌───▼────┐
             │   WAF    │ │ Cache  │ │  Auth  │
             │ Engine   │ │Manager │ │Manager │
             └──────────┘ └────────┘ └────────┘
+                              │
+                    ┌─────────▼─────────┐
+                    │   Worker Service  │
+                    │ (Background Tasks)│
+                    └───────────────────┘
 ```
+
+### Service Separation
+
+**Gateway Service** (Real-time Operations):
+- HTTP/HTTPS proxy with Pingora
+- WAF processing and security enforcement
+- Load balancing and routing
+- Rate limiting and authentication
+- Real-time request/response handling
+
+**Worker Service** (Background Tasks):
+- Certificate management and ACME renewal
+- Configuration management and validation
+- Log processing and analytics
+- Security event correlation
+- Database operations and maintenance
+
+For detailed information about the architecture, responsibilities, and communication patterns, see [WORKER-PURPOSE.md](WORKER-PURPOSE.md).
 
 ### Components
 - **Gateway Core**: Main proxy engine powered by Pingora
+- **Worker Service**: Background task processor for certificates, config, and logs
 - **WAF Engine**: Web Application Firewall with ModSecurity integration
 - **Cache Manager**: Distributed caching
 - **Auth Manager**: Authentication and authorization
@@ -241,6 +321,7 @@ Gateway is built with a modular architecture, now featuring direct integration w
 - **Plugin Manager**: Extensible plugin system
 - **Pingora Adapter**: Direct integration with Cloudflare's Pingora framework
 - **ModSecurity Engine**: OWASP CRS compatible rule engine
+- **gRPC Communication**: Secure Gateway-Worker communication via gRPC/gRPCS
 
 ## 🚀 Pingora Integration
 
@@ -312,6 +393,8 @@ impl Plugin for CustomPlugin {
 
 ## 📚 Documentation
 
+- [Worker Service Architecture](WORKER-PURPOSE.md) - Detailed architecture and separation of responsibilities
+- [Integration Validation Checklist](INTEGRATION-VALIDATION.md) - Complete validation checklist for Gateway-Worker integration
 - [Installation Guide](docs/installation/README.md)
 - [Configuration Reference](docs/configuration/README.md)
 - [Deployment Guide](docs/deployment/README.md)

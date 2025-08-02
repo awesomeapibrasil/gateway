@@ -1,0 +1,106 @@
+syntax = "proto3";
+
+package gateway_worker;
+
+// Configuration management messages
+message ConfigurationRequest {
+  string gateway_id = 1;
+  string config_type = 2; // "waf", "routing", "backend", "security"
+  string config_version = 3; // Empty for latest
+}
+
+message ConfigurationResponse {
+  string config_type = 1;
+  string config_version = 2;
+  string config_data = 3; // JSON or YAML serialized config
+  int64 updated_at = 4; // Unix timestamp
+  string checksum = 5;
+}
+
+message UpdateConfigurationRequest {
+  string config_type = 1;
+  string config_data = 2;
+  string updated_by = 3; // Admin/system identifier
+  bool validate_only = 4; // True for validation without applying
+}
+
+message UpdateConfigurationResponse {
+  bool success = 1;
+  string message = 2;
+  string config_version = 3;
+  repeated string validation_errors = 4;
+}
+
+message ConfigurationWatchRequest {
+  string gateway_id = 1;
+  repeated string config_types = 2; // Empty means watch all
+}
+
+message ConfigurationUpdate {
+  enum UpdateType {
+    CREATED = 0;
+    UPDATED = 1;
+    DELETED = 2;
+    VALIDATION_FAILED = 3;
+    ROLLBACK = 4;
+  }
+  
+  UpdateType update_type = 1;
+  string config_type = 2;
+  ConfigurationResponse configuration = 3;
+  string message = 4;
+  int64 timestamp = 5;
+}
+
+// WAF rule management
+message WafRuleRequest {
+  string rule_id = 1;
+  string rule_content = 2; // ModSecurity rule format
+  string rule_type = 3; // "custom", "owasp_crs", "security_policy"
+  bool enabled = 4;
+  int32 priority = 5;
+}
+
+message WafRuleResponse {
+  bool success = 1;
+  string message = 2;
+  string rule_id = 3;
+  repeated string compilation_errors = 4;
+}
+
+message WafRuleValidationRequest {
+  string rule_content = 1;
+  string rule_type = 2;
+}
+
+message WafRuleValidationResponse {
+  bool is_valid = 1;
+  repeated string validation_errors = 2;
+  string compiled_rule = 3;
+}
+
+// Routing configuration
+message RoutingConfigurationRequest {
+  repeated RouteConfig routes = 1;
+  repeated BackendConfig backends = 2;
+}
+
+message RouteConfig {
+  string id = 1;
+  string path_pattern = 2;
+  string method = 3; // GET, POST, etc. or * for all
+  string backend_id = 4;
+  map<string, string> headers = 5;
+  bool enable_waf = 6;
+  bool enable_cache = 7;
+  int32 rate_limit = 8;
+}
+
+message BackendConfig {
+  string id = 1;
+  string address = 2;
+  int32 weight = 3;
+  bool enabled = 4;
+  int32 health_check_interval = 5;
+  string health_check_path = 6;
+}

@@ -51,6 +51,7 @@ pub mod pingora_ssl;
 pub mod proxy;
 pub mod server;
 pub mod types;
+pub mod worker_client;
 
 pub use config::GatewayConfig;
 pub use error::{GatewayError, Result};
@@ -59,6 +60,7 @@ pub use ingress::IngressController;
 pub use pingora_adapter::PingoraGateway;
 pub use proxy::GatewayProxy;
 pub use server::GatewayServer;
+pub use worker_client::{WorkerClient, WorkerClientConfig};
 
 use once_cell::sync::Lazy;
 use std::sync::Arc;
