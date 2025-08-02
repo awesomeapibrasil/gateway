@@ -1,29 +1,32 @@
 # Gateway-Worker Integration Validation Checklist
 
-This checklist validates the integration between Gateway and Worker services according to the architecture described in [WORKER-PURPOSE.md](WORKER-PURPOSE.md).
+This checklist validates the integration between Gateway (Rust) and the external Worker service (Go) according to the architecture described in [WORKER-PURPOSE.md](WORKER-PURPOSE.md).
+
+**Note**: The Worker service is a separate Go application available at [https://github.com/awesomeapibrasil/gateway-worker](https://github.com/awesomeapibrasil/gateway-worker).
 
 ## Prerequisites
 
 - [ ] Gateway service builds successfully (`cargo build --bin gateway`)
-- [ ] Worker service builds successfully (`cargo build --bin gateway-worker`)
-- [ ] PostgreSQL database is available for Worker service
+- [ ] External Worker service (Go) is installed and running (see [gateway-worker repository](https://github.com/awesomeapibrasil/gateway-worker))
+- [ ] PostgreSQL database is available for Worker service  
 - [ ] Redis instance is available for job queue and caching
 - [ ] Network connectivity between Gateway and Worker services
+- [ ] gRPC communication port (default: 50051) is accessible between services
 
 ## Phase 1: Basic Communication
 
 ### gRPC Infrastructure
-- [ ] gRPC protocol buffer definitions compile successfully
-- [ ] Worker service starts and listens on gRPC port (default: 50051)
-- [ ] Gateway service can connect to Worker gRPC endpoint
+- [ ] gRPC protocol buffer definitions are compatible between Gateway (Rust) and Worker (Go)
+- [ ] External Worker service starts and listens on gRPC port (default: 50051)
+- [ ] Gateway service can connect to external Worker gRPC endpoint
 - [ ] Health check endpoint responds correctly
 - [ ] mTLS authentication works when enabled
 
 ### Service Discovery
-- [ ] Worker service registers successfully
-- [ ] Gateway service discovers Worker service
-- [ ] Connection failover works when Worker is unavailable
-- [ ] Connection recovery works when Worker comes back online
+- [ ] External Worker service (Go) registers successfully
+- [ ] Gateway service discovers external Worker service
+- [ ] Connection failover works when external Worker is unavailable
+- [ ] Connection recovery works when external Worker comes back online
 
 ## Phase 2: Certificate Management
 

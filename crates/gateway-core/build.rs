@@ -6,12 +6,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build_client(true)
         .compile_protos(
             &[
-                "../gateway-worker/proto/gateway_worker.proto",
-                "../gateway-worker/proto/certificate.proto",
-                "../gateway-worker/proto/configuration.proto",
-                "../gateway-worker/proto/log_processing.proto",
+                "proto/gateway_worker.proto",
             ],
-            &["../gateway-worker/proto"],
+            &["proto"],
         )?;
     Ok(())
 }

@@ -8,7 +8,6 @@ members = [
     "crates/gateway-monitoring",
     "crates/gateway-plugins",
     "crates/gateway-ssl",
-    "crates/gateway-worker",
 ]
 resolver = "2"
 

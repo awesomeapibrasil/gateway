@@ -40,6 +40,7 @@ impl Default for WorkerClientConfig {
 /// Worker Client for Gateway-Worker communication
 pub struct WorkerClient {
     client: GatewayWorkerServiceClient<Channel>,
+    #[allow(dead_code)]
     config: WorkerClientConfig,
     gateway_id: String,
 }

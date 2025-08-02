@@ -1931,43 +1931,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gateway-worker"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "base64 0.22.1",
- "chrono",
- "clap 4.5.42",
- "config",
- "dashmap",
- "futures",
- "gateway-database",
- "gateway-monitoring",
- "gateway-ssl",
- "pem",
- "prost",
- "prost-types",
- "redis",
- "reqwest 0.12.22",
- "rustls 0.23.31",
- "rustls-webpki 0.102.8",
- "serde",
- "serde_json",
- "serde_yaml 0.9.34+deprecated",
- "sha2",
- "thiserror 2.0.12",
- "tokio",
- "tokio-stream",
- "tonic",
- "tonic-build",
- "tracing",
- "tracing-subscriber",
- "uuid",
- "x509-parser",
-]
-
-[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
