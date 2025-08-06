@@ -396,7 +396,7 @@ mod tests {
     fn test_approximate_lru_eviction() {
         let config = ApproximatedLRUConfig {
             max_size: 5,
-            sample_size: 5, // Sample all keys to make test deterministic
+            sample_size: 5,         // Sample all keys to make test deterministic
             eviction_batch_size: 1, // Evict only the most idle key
             ..Default::default()
         };
@@ -420,11 +420,14 @@ mod tests {
 
         // Most recently accessed key should remain (key 4 should be present)
         assert!(cache.get(&4).is_some());
-        
+
         // Key 0 or 1 should have been evicted (least recently used)
         let key_0_present = cache.get(&0).is_some();
         let key_1_present = cache.get(&1).is_some();
-        assert!(!key_0_present || !key_1_present, "At least one of the oldest keys should be evicted");
+        assert!(
+            !key_0_present || !key_1_present,
+            "At least one of the oldest keys should be evicted"
+        );
     }
 
     #[test]
