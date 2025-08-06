@@ -42,7 +42,7 @@ where
     /// Create a new segmented LRU cache
     pub fn new(segment_count: usize, total_capacity: usize) -> Self {
         let segment_count = segment_count.max(1);
-        let max_size_per_segment = total_capacity / segment_count;
+        let max_size_per_segment = (total_capacity / segment_count).max(1); // Ensure at least 1 per segment
 
         let mut segments = Vec::with_capacity(segment_count);
         for _ in 0..segment_count {

@@ -248,7 +248,7 @@ impl UDPMulticastCluster {
             sender_id: self.node_id.clone(),
             timestamp: SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_default()
                 .as_secs(),
             sequence: self.message_handler.next_sequence(),
             payload: ClusterPayload::NodeInfo {
@@ -260,8 +260,8 @@ impl UDPMulticastCluster {
         self.send_multicast_message(join_message).await?;
 
         // Start background tasks
-        self.start_heartbeat_task().await;
-        self.start_receive_task().await;
+        self.start_heartbeat_task().await?;
+        self.start_receive_task().await?;
 
         info!("Node {} successfully joined cluster", self.node_id);
         Ok(())
@@ -378,9 +378,9 @@ impl UDPMulticastCluster {
     }
 
     /// Start heartbeat task
-    async fn start_heartbeat_task(&mut self) {
+    async fn start_heartbeat_task(&mut self) -> Result<(), ClusterError> {
         let node_id = self.node_id.clone();
-        let cluster = self.clone_for_task();
+        let cluster = self.clone_for_task().map_err(|e| ClusterError::Network(e.to_string()))?;
         let heartbeat_interval = self.config.heartbeat_interval;
 
         let task = tokio::spawn(async move {
@@ -414,11 +414,12 @@ impl UDPMulticastCluster {
         });
 
         self.heartbeat_task = Some(task);
+        Ok(())
     }
 
     /// Start message receive task
-    async fn start_receive_task(&mut self) {
-        let cluster = self.clone_for_task();
+    async fn start_receive_task(&mut self) -> Result<(), ClusterError> {
+        let cluster = self.clone_for_task().map_err(|e| ClusterError::Network(e.to_string()))?;
 
         let task = tokio::spawn(async move {
             let mut buffer = vec![0u8; 65536]; // 64KB buffer
@@ -450,6 +451,7 @@ impl UDPMulticastCluster {
         });
 
         self.receive_task = Some(task);
+        Ok(())
     }
 
     /// Handle received message
@@ -604,17 +606,17 @@ impl UDPMulticastCluster {
     }
 
     /// Clone for background tasks
-    fn clone_for_task(&self) -> Self {
-        Self {
+    fn clone_for_task(&self) -> Result<Self, std::io::Error> {
+        Ok(Self {
             node_id: self.node_id.clone(),
             config: self.config.clone(),
-            socket: self.socket.try_clone().unwrap(),
+            socket: self.socket.try_clone()?,
             cluster_view: Arc::clone(&self.cluster_view),
             message_handler: self.message_handler.clone(),
             heartbeat_task: None,
             receive_task: None,
             stats: ClusterStats::default(), // New stats for task
-        }
+        })
     }
 
     /// Get cluster statistics

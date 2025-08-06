@@ -330,7 +330,7 @@ impl CacheCoherenceManager {
                         sender_id: cluster.node_id.clone(),
                         timestamp: std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap()
+                            .unwrap_or_default()
                             .as_secs(),
                         sequence: 0,
                         payload: ClusterPayload::CacheOperation {
