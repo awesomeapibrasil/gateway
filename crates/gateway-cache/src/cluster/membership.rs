@@ -230,6 +230,13 @@ impl ClusterView {
             let time_since_last_seen = now.duration_since(node.last_seen);
 
             match node.status {
+                NodeStatus::Active if time_since_last_seen > failure_timeout => {
+                    // If we haven't heard from an active node for longer than failure_timeout,
+                    // mark it as failed directly
+                    node.status = NodeStatus::Failed;
+                    expired_nodes.push(node_id.clone());
+                    self.version += 1;
+                }
                 NodeStatus::Active if time_since_last_seen > failure_timeout / 2 => {
                     // Mark as suspect if we haven't heard from them for half the failure timeout
                     node.status = NodeStatus::Suspect;

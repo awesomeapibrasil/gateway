@@ -627,8 +627,15 @@ impl VectorClock {
         let mut all_less_or_equal = true;
         let mut at_least_one_less = false;
 
-        for (node_id, our_clock) in &self.clocks {
+        // Check all nodes in both clocks
+        let mut all_nodes = std::collections::HashSet::new();
+        all_nodes.extend(self.clocks.keys());
+        all_nodes.extend(other.clocks.keys());
+
+        for node_id in all_nodes {
+            let our_clock = self.clocks.get(node_id).unwrap_or(&0);
             let other_clock = other.clocks.get(node_id).unwrap_or(&0);
+            
             if our_clock > other_clock {
                 all_less_or_equal = false;
                 break;

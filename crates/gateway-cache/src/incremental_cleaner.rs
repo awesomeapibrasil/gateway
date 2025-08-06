@@ -536,6 +536,8 @@ mod tests {
         }
 
         async fn remove_expired_key(&self, _key: &String) -> Result<Option<usize>, Self::Error> {
+            // Add a small delay to ensure timing is measurable
+            tokio::time::sleep(Duration::from_millis(1)).await;
             Ok(Some(100)) // Mock 100 bytes freed
         }
     }

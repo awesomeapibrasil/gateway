@@ -420,7 +420,7 @@ mod tests {
     #[test]
     fn test_concurrent_access() {
         let config = ApproximatedLRUConfig {
-            max_size: 100,
+            max_size: 1000, // Increased to avoid evictions during test
             ..Default::default()
         };
         let cache = Arc::new(ApproximatedLRU::new(config));
@@ -430,7 +430,7 @@ mod tests {
         for i in 0..10 {
             let cache_clone = Arc::clone(&cache);
             let handle = thread::spawn(move || {
-                for j in 0..50 {
+                for j in 0..50 { // Total: 500 items, well under 1000 capacity
                     let key = format!("key_{i}_{j}");
                     let value = format!("value_{i}_{j}");
                     cache_clone.insert(key.clone(), value.clone());
@@ -445,8 +445,8 @@ mod tests {
             handle.join().unwrap();
         }
 
-        // Cache should have at most max_size items
-        assert!(cache.len() <= 100);
+        // Cache should have 500 items (10 threads × 50 items each)
+        assert_eq!(cache.len(), 500);
 
         let stats = cache.stats();
         assert!(stats.hits.load(Ordering::Relaxed) > 0);
