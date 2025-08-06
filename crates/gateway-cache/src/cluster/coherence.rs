@@ -100,6 +100,7 @@ pub struct InvalidationLog {
 
 /// Conflict resolver for handling cache conflicts
 pub struct ConflictResolver {
+    #[allow(dead_code)]
     config: CoherenceConfig,
     vector_clocks: Arc<RwLock<HashMap<String, VectorClock>>>,
 }
@@ -211,7 +212,7 @@ impl CacheCoherenceManager {
                         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
                     // Apply invalidation locally
-                    self.apply_local_invalidation(&key).await?;
+                    self.apply_local_invalidation(key).await?;
 
                     // Acknowledge invalidation
                     self.acknowledge_invalidation(
@@ -225,7 +226,7 @@ impl CacheCoherenceManager {
 
                     // Check for conflicts
                     if self.config.conflict_detection {
-                        if let Some(conflict) = self.detect_conflict(&key, &message).await? {
+                        if let Some(conflict) = self.detect_conflict(key, &message).await? {
                             warn!("Conflict detected for key {}: {:?}", key, conflict);
                             self.stats
                                 .conflicts_detected
@@ -241,17 +242,17 @@ impl CacheCoherenceManager {
 
                     // Apply update locally
                     if let Some(data) = data {
-                        self.apply_local_update(&key, data.clone()).await?;
+                        self.apply_local_update(key, data.clone()).await?;
                     }
                 }
                 CacheOp::Delete => {
                     debug!("Processing cache delete for key: {}", key);
-                    self.apply_local_delete(&key).await?;
+                    self.apply_local_delete(key).await?;
                 }
                 CacheOp::Sync => {
                     debug!("Processing cache sync for key: {}", key);
                     // Sync from persistent store if needed
-                    self.sync_from_persistent_store(&key).await?;
+                    self.sync_from_persistent_store(key).await?;
                 }
             }
 
@@ -421,7 +422,7 @@ impl CacheCoherenceManager {
                         ConflictingOperation {
                             node_id: existing_entry.node_id.clone(),
                             timestamp: existing_time,
-                            operation: existing_entry.operation.clone(),
+                            operation: existing_entry.operation,
                         },
                         ConflictingOperation {
                             node_id: message.sender_id.clone(),
@@ -429,7 +430,7 @@ impl CacheCoherenceManager {
                             operation: if let ClusterPayload::CacheOperation { operation, .. } =
                                 &message.payload
                             {
-                                operation.clone()
+                                *operation
                             } else {
                                 CacheOp::Update
                             },
@@ -601,16 +602,19 @@ impl ConflictResolver {
 }
 
 impl VectorClock {
+    #[allow(dead_code)]
     fn new() -> Self {
         Self {
             clocks: HashMap::new(),
         }
     }
 
+    #[allow(dead_code)]
     fn increment(&mut self, node_id: &str) {
         *self.clocks.entry(node_id.to_string()).or_insert(0) += 1;
     }
 
+    #[allow(dead_code)]
     fn update(&mut self, other: &VectorClock) {
         for (node_id, clock) in &other.clocks {
             let current = self.clocks.entry(node_id.clone()).or_insert(0);
@@ -618,6 +622,7 @@ impl VectorClock {
         }
     }
 
+    #[allow(dead_code)]
     fn happens_before(&self, other: &VectorClock) -> bool {
         let mut all_less_or_equal = true;
         let mut at_least_one_less = false;
@@ -635,6 +640,7 @@ impl VectorClock {
         all_less_or_equal && at_least_one_less
     }
 
+    #[allow(dead_code)]
     fn concurrent_with(&self, other: &VectorClock) -> bool {
         !self.happens_before(other) && !other.happens_before(self)
     }
@@ -673,7 +679,7 @@ mod tests {
 
         // Node1 increments
         clock1.increment("node1");
-        assert!(clock1.happens_before(&clock2) == false);
+        assert!(!clock1.happens_before(&clock2));
         assert!(clock2.happens_before(&clock1));
 
         // Node2 increments

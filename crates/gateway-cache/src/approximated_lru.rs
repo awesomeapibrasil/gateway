@@ -239,15 +239,13 @@ where
             // Get a random key by iterating and taking nth element
             // This is not perfectly random but good enough for cache eviction
             let target_idx = thread_rng().gen_range(0..self.map.len());
-            let mut current_idx = 0;
 
-            for entry in self.map.iter() {
+            for (current_idx, entry) in self.map.iter().enumerate() {
                 if current_idx == target_idx {
                     let idle_score = entry.idle_score(current_time);
                     candidates.push((entry.key().clone(), idle_score));
                     break;
                 }
-                current_idx += 1;
             }
         }
 
@@ -401,7 +399,7 @@ mod tests {
 
         // Fill cache to capacity
         for i in 0..5 {
-            cache.insert(i, format!("value_{}", i));
+            cache.insert(i, format!("value_{i}"));
         }
 
         // Access some keys to make them "more recent"
@@ -433,8 +431,8 @@ mod tests {
             let cache_clone = Arc::clone(&cache);
             let handle = thread::spawn(move || {
                 for j in 0..50 {
-                    let key = format!("key_{}_{}", i, j);
-                    let value = format!("value_{}_{}", i, j);
+                    let key = format!("key_{i}_{j}");
+                    let value = format!("value_{i}_{j}");
                     cache_clone.insert(key.clone(), value.clone());
                     assert_eq!(cache_clone.get(&key), Some(value));
                 }
@@ -505,14 +503,14 @@ mod tests {
         let cache = ApproximatedLRU::new(config);
 
         for i in 0..10 {
-            cache.insert(i, format!("value_{}", i));
+            cache.insert(i, format!("value_{i}"));
         }
 
         let sample = cache.sample_entries(5);
         assert_eq!(sample.len(), 5);
 
         for (key, entry) in sample {
-            assert_eq!(entry.value, format!("value_{}", key));
+            assert_eq!(entry.value, format!("value_{key}"));
         }
     }
 }

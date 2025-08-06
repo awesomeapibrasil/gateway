@@ -160,28 +160,29 @@ impl UDPMulticastCluster {
         let node_id = Uuid::new_v4().to_string();
 
         // Parse multicast address
-        let multicast_addr: SocketAddr = config.multicast_address.parse().map_err(|e| {
-            ClusterError::Configuration(format!("Invalid multicast address: {}", e))
-        })?;
+        let multicast_addr: SocketAddr = config
+            .multicast_address
+            .parse()
+            .map_err(|e| ClusterError::Configuration(format!("Invalid multicast address: {e}")))?;
 
         // Create UDP socket
         let bind_addr = if let Some(ref bind_address) = config.bind_address {
             bind_address
                 .parse()
-                .map_err(|e| ClusterError::Configuration(format!("Invalid bind address: {}", e)))?
+                .map_err(|e| ClusterError::Configuration(format!("Invalid bind address: {e}")))?
         } else {
             SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0)
         };
 
         let socket = UdpSocket::bind(bind_addr)
-            .map_err(|e| ClusterError::Network(format!("Failed to bind socket: {}", e)))?;
+            .map_err(|e| ClusterError::Network(format!("Failed to bind socket: {e}")))?;
 
         // Join multicast group
         if let IpAddr::V4(multicast_ip) = multicast_addr.ip() {
             socket
                 .join_multicast_v4(&multicast_ip, &Ipv4Addr::UNSPECIFIED)
                 .map_err(|e| {
-                    ClusterError::Network(format!("Failed to join multicast group: {}", e))
+                    ClusterError::Network(format!("Failed to join multicast group: {e}"))
                 })?;
         } else {
             return Err(ClusterError::Configuration(
@@ -189,13 +190,13 @@ impl UDPMulticastCluster {
             ));
         }
 
-        socket.set_multicast_loop_v4(false).map_err(|e| {
-            ClusterError::Network(format!("Failed to disable multicast loop: {}", e))
-        })?;
+        socket
+            .set_multicast_loop_v4(false)
+            .map_err(|e| ClusterError::Network(format!("Failed to disable multicast loop: {e}")))?;
 
         socket
             .set_nonblocking(true)
-            .map_err(|e| ClusterError::Network(format!("Failed to set non-blocking: {}", e)))?;
+            .map_err(|e| ClusterError::Network(format!("Failed to set non-blocking: {e}")))?;
 
         let cluster_view = Arc::new(RwLock::new(ClusterView::new()));
         let message_handler = MessageHandler::new(node_id.clone(), Arc::clone(&cluster_view));
@@ -222,9 +223,10 @@ impl UDPMulticastCluster {
         // Add self to cluster view
         {
             let mut view = self.cluster_view.write().unwrap();
-            let local_addr = self.socket.local_addr().map_err(|e| {
-                ClusterError::Network(format!("Failed to get local address: {}", e))
-            })?;
+            let local_addr = self
+                .socket
+                .local_addr()
+                .map_err(|e| ClusterError::Network(format!("Failed to get local address: {e}")))?;
 
             let node_info = NodeInfo {
                 node_id: self.node_id.clone(),
@@ -315,7 +317,7 @@ impl UDPMulticastCluster {
 
         // Serialize message
         let data = serde_json::to_vec(&message).map_err(|e| {
-            ClusterError::Serialization(format!("Failed to serialize message: {}", e))
+            ClusterError::Serialization(format!("Failed to serialize message: {e}"))
         })?;
 
         // Send to multicast address
@@ -351,8 +353,7 @@ impl UDPMulticastCluster {
                     .message_send_errors
                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 Err(ClusterError::Network(format!(
-                    "Failed to send message: {}",
-                    e
+                    "Failed to send message: {e}"
                 )))
             }
         }
@@ -363,7 +364,7 @@ impl UDPMulticastCluster {
         let local_addr = self
             .socket
             .local_addr()
-            .map_err(|e| ClusterError::Network(format!("Failed to get local address: {}", e)))?;
+            .map_err(|e| ClusterError::Network(format!("Failed to get local address: {e}")))?;
 
         Ok(NodeInfo {
             node_id: self.node_id.clone(),
@@ -459,7 +460,7 @@ impl UDPMulticastCluster {
     ) -> Result<(), ClusterError> {
         // Deserialize message
         let message: ClusterMessage = serde_json::from_slice(data).map_err(|e| {
-            ClusterError::Serialization(format!("Failed to deserialize message: {}", e))
+            ClusterError::Serialization(format!("Failed to deserialize message: {e}"))
         })?;
 
         // Ignore messages from self

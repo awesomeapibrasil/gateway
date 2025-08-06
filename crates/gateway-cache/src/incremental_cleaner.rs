@@ -77,7 +77,9 @@ pub struct CleanupResult {
 pub struct AdaptiveController {
     recent_metrics: Arc<Mutex<Vec<CleanupMetrics>>>,
     max_history: usize,
+    #[allow(dead_code)]
     last_adjustment: Instant,
+    #[allow(dead_code)]
     adjustment_interval: Duration,
 }
 
@@ -329,15 +331,12 @@ impl IncrementalCleaner {
             loop {
                 interval.tick().await;
 
-                match self.run_cleanup_cycle(cache_provider.as_ref()).await {
-                    result => {
-                        if result.keys_cleaned > 0 {
-                            debug!(
-                                "Background cleanup: removed {} keys in {:?}",
-                                result.keys_cleaned, result.time_taken
-                            );
-                        }
-                    }
+                let result = self.run_cleanup_cycle(cache_provider.as_ref()).await;
+                if result.keys_cleaned > 0 {
+                    debug!(
+                        "Background cleanup: removed {} keys in {:?}",
+                        result.keys_cleaned, result.time_taken
+                    );
                 }
             }
         })

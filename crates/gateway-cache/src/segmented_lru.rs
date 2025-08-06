@@ -425,8 +425,8 @@ mod tests {
             let cache_clone = Arc::clone(&cache);
             let handle = thread::spawn(move || {
                 for j in 0..100 {
-                    let key = format!("key_{}_{}", i, j);
-                    let value = format!("value_{}_{}", i, j);
+                    let key = format!("key_{i}_{j}");
+                    let value = format!("value_{i}_{j}");
                     cache_clone.insert(key.clone(), value.clone());
                     assert_eq!(cache_clone.get(&key), Some(value));
                 }
