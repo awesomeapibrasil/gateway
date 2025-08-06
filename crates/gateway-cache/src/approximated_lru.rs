@@ -229,10 +229,11 @@ where
 
         // Sample random keys and find the most idle ones
         let mut candidates = Vec::with_capacity(sample_size);
+        let mut sampled_keys = std::collections::HashSet::new();
         let mut attempts = 0;
         let max_attempts = sample_size * 3; // Avoid infinite loops
 
-        // Random sampling approach
+        // Random sampling approach with duplicate prevention
         while candidates.len() < sample_size && attempts < max_attempts {
             attempts += 1;
 
@@ -242,8 +243,12 @@ where
 
             for (current_idx, entry) in self.map.iter().enumerate() {
                 if current_idx == target_idx {
-                    let idle_score = entry.idle_score(current_time);
-                    candidates.push((entry.key().clone(), idle_score));
+                    let key = entry.key().clone();
+                    // Only add if we haven't sampled this key already
+                    if sampled_keys.insert(key.clone()) {
+                        let idle_score = entry.idle_score(current_time);
+                        candidates.push((key, idle_score));
+                    }
                     break;
                 }
             }
@@ -391,8 +396,8 @@ mod tests {
     fn test_approximate_lru_eviction() {
         let config = ApproximatedLRUConfig {
             max_size: 5,
-            sample_size: 3,
-            eviction_batch_size: 2,
+            sample_size: 5, // Sample all keys to make test deterministic
+            eviction_batch_size: 1, // Evict only the most idle key
             ..Default::default()
         };
         let cache = ApproximatedLRU::new(config);
@@ -413,8 +418,13 @@ mod tests {
         // Cache should still be at or near max capacity
         assert!(cache.len() <= 5);
 
-        // Recently accessed keys should be more likely to remain
-        assert!(cache.get(&4).is_some()); // Most recently accessed
+        // Most recently accessed key should remain (key 4 should be present)
+        assert!(cache.get(&4).is_some());
+        
+        // Key 0 or 1 should have been evicted (least recently used)
+        let key_0_present = cache.get(&0).is_some();
+        let key_1_present = cache.get(&1).is_some();
+        assert!(!key_0_present || !key_1_present, "At least one of the oldest keys should be evicted");
     }
 
     #[test]
