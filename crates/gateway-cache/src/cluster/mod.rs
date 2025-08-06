@@ -278,7 +278,7 @@ impl UDPMulticastCluster {
             sender_id: self.node_id.clone(),
             timestamp: SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_default()
                 .as_secs(),
             sequence: self.message_handler.next_sequence(),
             payload: ClusterPayload::NodeInfo {

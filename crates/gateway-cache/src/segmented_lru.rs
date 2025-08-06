@@ -184,18 +184,23 @@ where
 
     /// Get a value and move it to the front
     fn get(&mut self, key: &K) -> Option<V> {
-        if let Some(node_ptr) = self.map.get(key) {
-            let node_ptr = node_ptr.as_ref() as *const LRUNode<K, V> as *mut LRUNode<K, V>;
+        if let Some(node_box) = self.map.get(key) {
+            // Get raw pointer for linked list operations and clone value first
+            let node_ptr = node_box.as_ref() as *const LRUNode<K, V> as *mut LRUNode<K, V>;
+            let value = node_box.value.clone();
+
             unsafe {
-                // Update access statistics
-                (*node_ptr).access_time = Instant::now();
-                (*node_ptr).access_count += 1;
+                // Update access statistics (only if pointer is valid)
+                if !node_ptr.is_null() {
+                    (*node_ptr).access_time = Instant::now();
+                    (*node_ptr).access_count += 1;
 
-                // Move to front
-                self.move_to_front(node_ptr);
-
-                Some((*node_ptr).value.clone())
+                    // Move to front of linked list
+                    self.move_to_front(node_ptr);
+                }
             }
+
+            Some(value)
         } else {
             None
         }
@@ -204,16 +209,22 @@ where
     /// Insert a new key-value pair
     fn insert(&mut self, key: K, value: V) -> Option<V> {
         if let Some(existing_node) = self.map.get(&key) {
-            // Update existing node
+            // Get the old value and raw pointer first
+            let old_value = existing_node.value.clone();
             let node_ptr = existing_node.as_ref() as *const LRUNode<K, V> as *mut LRUNode<K, V>;
+
             unsafe {
-                let old_value = (*node_ptr).value.clone();
-                (*node_ptr).value = value;
-                (*node_ptr).access_time = Instant::now();
-                (*node_ptr).access_count += 1;
-                self.move_to_front(node_ptr);
-                Some(old_value)
+                // Update existing node safely (only if pointer is valid)
+                if !node_ptr.is_null() {
+                    (*node_ptr).value = value;
+                    (*node_ptr).access_time = Instant::now();
+                    (*node_ptr).access_count += 1;
+
+                    self.move_to_front(node_ptr);
+                }
             }
+
+            Some(old_value)
         } else {
             // Evict if necessary
             if self.size >= self.max_size {
@@ -290,13 +301,28 @@ where
 
     /// Move a node to the front of the list (most recently used)
     unsafe fn move_to_front(&mut self, node: *mut LRUNode<K, V>) {
+        // Safety check: ensure node is valid
+        if node.is_null() {
+            return;
+        }
+
         self.remove_node(node);
         self.add_to_front(node);
     }
 
     /// Add a node to the front of the list
     unsafe fn add_to_front(&mut self, node: *mut LRUNode<K, V>) {
+        // Safety check: ensure pointers are valid
+        if node.is_null() || self.head.is_null() {
+            return;
+        }
+
         let first_node = (*self.head).next;
+
+        // Safety check: ensure first_node is not null
+        if first_node.is_null() {
+            return;
+        }
 
         (*node).next = first_node;
         (*node).prev = self.head;
@@ -306,21 +332,44 @@ where
 
     /// Remove a node from the linked list
     unsafe fn remove_node(&mut self, node: *mut LRUNode<K, V>) {
+        // Safety check: ensure node is valid
+        if node.is_null() {
+            return;
+        }
+
         let prev_node = (*node).prev;
         let next_node = (*node).next;
 
+        // Safety check: ensure prev and next nodes are valid
+        if prev_node.is_null() || next_node.is_null() {
+            return;
+        }
+
         (*prev_node).next = next_node;
         (*next_node).prev = prev_node;
+
+        // Clear the node's pointers to prevent dangling references
+        (*node).prev = ptr::null_mut();
+        (*node).next = ptr::null_mut();
     }
 
     /// Evict the least recently used node
     fn evict_lru(&mut self) {
         unsafe {
-            let lru_node = (*self.tail).prev;
-            if lru_node != self.head {
-                let key = (*lru_node).key.clone();
-                self.remove(&key);
+            // Safety check: ensure tail is valid
+            if self.tail.is_null() {
+                return;
             }
+
+            let lru_node = (*self.tail).prev;
+
+            // Safety check: ensure lru_node is valid and not head
+            if lru_node.is_null() || lru_node == self.head {
+                return;
+            }
+
+            let key = (*lru_node).key.clone();
+            self.remove(&key);
         }
     }
 }
