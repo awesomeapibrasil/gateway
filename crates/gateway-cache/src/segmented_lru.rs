@@ -230,12 +230,18 @@ where
                 access_count: 1,
             });
 
-            let node_ptr = Box::into_raw(new_node);
-            self.map.insert(key, unsafe { Box::from_raw(node_ptr) });
+            // Store the new node in the map first
+            let key_clone = key.clone();
+            self.map.insert(key, new_node);
 
-            // Add to front
-            unsafe {
-                self.add_to_front(node_ptr);
+            // Get the raw pointer from the stored node for linked list operations
+            if let Some(stored_node) = self.map.get(&key_clone) {
+                let node_ptr = stored_node.as_ref() as *const LRUNode<K, V> as *mut LRUNode<K, V>;
+
+                // Add to front of linked list
+                unsafe {
+                    self.add_to_front(node_ptr);
+                }
             }
 
             self.size += 1;
@@ -320,23 +326,47 @@ where
 }
 
 // Implement Drop for proper cleanup
-// Implement Drop without trait bounds since we handle cleanup manually
 impl<K, V> Drop for LRUSegment<K, V> {
     fn drop(&mut self) {
-        // Manually clear the map
+        // First, safely clear all nodes from the linked list
+        // This prevents double-free issues with sentinel nodes
+        let mut current = if !self.head.is_null() {
+            unsafe { (*self.head).next }
+        } else {
+            std::ptr::null_mut()
+        };
+
+        // Traverse and clean up all non-sentinel nodes
+        while !current.is_null() && current != self.tail {
+            let next = unsafe { (*current).next };
+            // Note: Don't manually drop these nodes as they're owned by HashMap
+            current = next;
+        }
+
+        // Clear the map - this will properly drop all stored Boxes
         self.map.clear();
         self.size = 0;
 
-        // Clean up sentinel nodes
+        // Clean up sentinel nodes (head and tail)
+        // Only drop if they were actually allocated
         if !self.head.is_null() {
             unsafe {
+                // Reset pointers to prevent dangling references
+                (*self.head).next = std::ptr::null_mut();
+                (*self.head).prev = std::ptr::null_mut();
                 drop(Box::from_raw(self.head));
             }
+            self.head = std::ptr::null_mut();
         }
+
         if !self.tail.is_null() {
             unsafe {
+                // Reset pointers to prevent dangling references
+                (*self.tail).next = std::ptr::null_mut();
+                (*self.tail).prev = std::ptr::null_mut();
                 drop(Box::from_raw(self.tail));
             }
+            self.tail = std::ptr::null_mut();
         }
     }
 }

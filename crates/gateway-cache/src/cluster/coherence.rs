@@ -272,7 +272,7 @@ impl CacheCoherenceManager {
             sender_id: self.cluster.node_id.clone(),
             timestamp: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_default()
                 .as_secs(),
             sequence: 0, // Will be set by cluster
             payload: ClusterPayload::CacheOperation {

@@ -144,9 +144,9 @@ impl IncrementalCleaner {
         // Main cleanup loop
         while start_time.elapsed() < max_time && keys_checked < max_keys {
             match cache_provider.get_expired_key_sample(1).await {
-                Some(expired_keys) if !expired_keys.is_empty() => {
+                Ok(expired_keys) if !expired_keys.is_empty() => {
                     for expired_key in expired_keys {
-                        if let Some(removed_size) =
+                        if let Ok(Some(removed_size)) =
                             cache_provider.remove_expired_key(&expired_key).await
                         {
                             keys_cleaned += 1;
@@ -161,7 +161,7 @@ impl IncrementalCleaner {
                     }
                 }
                 _ => {
-                    // No more expired keys found, break early
+                    // No more expired keys found or error occurred, break early
                     break;
                 }
             }
@@ -169,13 +169,13 @@ impl IncrementalCleaner {
             // Ensure we check at least minimum keys
             if keys_checked < min_keys && start_time.elapsed() < max_time {
                 // Sample random keys and check if expired
-                if let Some(sample_keys) = cache_provider
+                if let Ok(sample_keys) = cache_provider
                     .get_random_key_sample(min_keys - keys_checked)
                     .await
                 {
                     for key in sample_keys {
-                        if cache_provider.is_key_expired(&key).await {
-                            if let Some(removed_size) =
+                        if let Ok(true) = cache_provider.is_key_expired(&key).await {
+                            if let Ok(Some(removed_size)) =
                                 cache_provider.remove_expired_key(&key).await
                             {
                                 keys_cleaned += 1;
@@ -409,21 +409,41 @@ impl AdaptiveController {
 }
 
 /// Trait for providing expired keys to the cleaner
+///
+/// This trait allows different cache implementations to integrate with the incremental cleaner
+/// by providing methods to sample, check, and remove expired keys efficiently.
 #[async_trait::async_trait]
 pub trait ExpiredKeyProvider {
-    type Key: Send + Sync;
+    type Key: Send + Sync + Clone + std::fmt::Debug;
+    type Error: Send + Sync + std::error::Error;
 
     /// Get a sample of expired keys
-    async fn get_expired_key_sample(&self, count: usize) -> Option<Vec<Self::Key>>;
+    /// Returns a vector of keys that are known to be expired
+    async fn get_expired_key_sample(&self, count: usize) -> Result<Vec<Self::Key>, Self::Error>;
 
     /// Get a sample of random keys for expiration checking
-    async fn get_random_key_sample(&self, count: usize) -> Option<Vec<Self::Key>>;
+    /// Used for probabilistic cleanup when expired key tracking is not available
+    async fn get_random_key_sample(&self, count: usize) -> Result<Vec<Self::Key>, Self::Error>;
 
     /// Check if a specific key is expired
-    async fn is_key_expired(&self, key: &Self::Key) -> bool;
+    /// Returns true if the key should be removed from the cache
+    async fn is_key_expired(&self, key: &Self::Key) -> Result<bool, Self::Error>;
 
     /// Remove an expired key and return the freed memory size
-    async fn remove_expired_key(&self, key: &Self::Key) -> Option<usize>;
+    /// Returns the approximate memory freed in bytes, or None if key wasn't found
+    async fn remove_expired_key(&self, key: &Self::Key) -> Result<Option<usize>, Self::Error>;
+
+    /// Get the total number of keys in the cache (optional optimization)
+    async fn key_count(&self) -> Result<usize, Self::Error> {
+        // Default implementation - cache providers can override for efficiency
+        Ok(0)
+    }
+
+    /// Get estimated memory usage in bytes (optional optimization)
+    async fn memory_usage(&self) -> Result<usize, Self::Error> {
+        // Default implementation - cache providers can override for efficiency
+        Ok(0)
+    }
 }
 
 #[cfg(test)]
@@ -480,31 +500,43 @@ mod tests {
         }
     }
 
+    #[derive(Debug)]
+    struct MockError;
+
+    impl std::fmt::Display for MockError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "Mock cache error")
+        }
+    }
+
+    impl std::error::Error for MockError {}
+
     #[async_trait::async_trait]
     impl ExpiredKeyProvider for MockCacheProvider {
         type Key = String;
+        type Error = MockError;
 
-        async fn get_expired_key_sample(&self, count: usize) -> Option<Vec<String>> {
+        async fn get_expired_key_sample(&self, count: usize) -> Result<Vec<String>, Self::Error> {
             let mut expired = self.expired_keys.lock().unwrap();
             if expired.is_empty() {
-                None
+                Ok(vec![])
             } else {
                 let drain_count = count.min(expired.len());
                 let result = expired.drain(..drain_count).collect();
-                Some(result)
+                Ok(result)
             }
         }
 
-        async fn get_random_key_sample(&self, _count: usize) -> Option<Vec<String>> {
-            Some(vec!["random_key".to_string()])
+        async fn get_random_key_sample(&self, _count: usize) -> Result<Vec<String>, Self::Error> {
+            Ok(vec!["random_key".to_string()])
         }
 
-        async fn is_key_expired(&self, _key: &String) -> bool {
-            false
+        async fn is_key_expired(&self, _key: &String) -> Result<bool, Self::Error> {
+            Ok(false)
         }
 
-        async fn remove_expired_key(&self, _key: &String) -> Option<usize> {
-            Some(100) // Mock 100 bytes freed
+        async fn remove_expired_key(&self, _key: &String) -> Result<Option<usize>, Self::Error> {
+            Ok(Some(100)) // Mock 100 bytes freed
         }
     }
 
