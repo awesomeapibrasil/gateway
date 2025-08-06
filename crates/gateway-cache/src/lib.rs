@@ -1,5 +1,10 @@
 //! Distributed Cache Manager
 
+pub mod segmented_lru;
+pub mod approximated_lru;
+pub mod incremental_cleaner;
+pub mod cluster;
+
 use dashmap::DashMap;
 use redis::{Client as RedisClient, Commands};
 use serde::{Deserialize, Serialize};
@@ -8,6 +13,14 @@ use sqlx::Row;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, info, warn};
+
+// Re-export public types
+pub use segmented_lru::{SegmentedLRU, SegmentedLRUStats};
+pub use approximated_lru::{ApproximatedLRU, ApproximatedLRUConfig, LocalCache, CacheMetrics};
+pub use incremental_cleaner::{IncrementalCleaner, CleanupConfig, CleanupResult, CacheMetricsProvider, ExpiredKeyProvider};
+pub use cluster::{UDPMulticastCluster, ClusterConfig, ClusterMessage, MessageType, ClusterPayload};
+pub use cluster::membership::{ClusterView, NodeInfo, NodeStatus};
+pub use cluster::coherence::{CacheCoherenceManager, CoherenceStrategy, CoherenceConfig};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CacheConfig {
