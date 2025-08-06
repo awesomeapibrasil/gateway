@@ -380,7 +380,9 @@ impl UDPMulticastCluster {
     /// Start heartbeat task
     async fn start_heartbeat_task(&mut self) -> Result<(), ClusterError> {
         let node_id = self.node_id.clone();
-        let cluster = self.clone_for_task().map_err(|e| ClusterError::Network(e.to_string()))?;
+        let cluster = self
+            .clone_for_task()
+            .map_err(|e| ClusterError::Network(e.to_string()))?;
         let heartbeat_interval = self.config.heartbeat_interval;
 
         let task = tokio::spawn(async move {
@@ -419,7 +421,9 @@ impl UDPMulticastCluster {
 
     /// Start message receive task
     async fn start_receive_task(&mut self) -> Result<(), ClusterError> {
-        let cluster = self.clone_for_task().map_err(|e| ClusterError::Network(e.to_string()))?;
+        let cluster = self
+            .clone_for_task()
+            .map_err(|e| ClusterError::Network(e.to_string()))?;
 
         let task = tokio::spawn(async move {
             let mut buffer = vec![0u8; 65536]; // 64KB buffer

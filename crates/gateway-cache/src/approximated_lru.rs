@@ -430,7 +430,8 @@ mod tests {
         for i in 0..10 {
             let cache_clone = Arc::clone(&cache);
             let handle = thread::spawn(move || {
-                for j in 0..50 { // Total: 500 items, well under 1000 capacity
+                for j in 0..50 {
+                    // Total: 500 items, well under 1000 capacity
                     let key = format!("key_{i}_{j}");
                     let value = format!("value_{i}_{j}");
                     cache_clone.insert(key.clone(), value.clone());

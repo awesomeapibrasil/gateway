@@ -635,7 +635,7 @@ impl VectorClock {
         for node_id in all_nodes {
             let our_clock = self.clocks.get(node_id).unwrap_or(&0);
             let other_clock = other.clocks.get(node_id).unwrap_or(&0);
-            
+
             if our_clock > other_clock {
                 all_less_or_equal = false;
                 break;
