@@ -1,9 +1,9 @@
 //! Distributed Cache Manager
 
-pub mod segmented_lru;
 pub mod approximated_lru;
-pub mod incremental_cleaner;
 pub mod cluster;
+pub mod incremental_cleaner;
+pub mod segmented_lru;
 
 use dashmap::DashMap;
 use redis::{Client as RedisClient, Commands};
@@ -15,12 +15,16 @@ use std::time::Duration;
 use tracing::{debug, info, warn};
 
 // Re-export public types
-pub use segmented_lru::{SegmentedLRU, SegmentedLRUStats};
-pub use approximated_lru::{ApproximatedLRU, ApproximatedLRUConfig, LocalCache, CacheMetrics};
-pub use incremental_cleaner::{IncrementalCleaner, CleanupConfig, CleanupResult, CacheMetricsProvider, ExpiredKeyProvider};
-pub use cluster::{UDPMulticastCluster, ClusterConfig, ClusterMessage, MessageType, ClusterPayload};
+pub use approximated_lru::{ApproximatedLRU, ApproximatedLRUConfig, CacheMetrics, LocalCache};
+pub use cluster::coherence::{CacheCoherenceManager, CoherenceConfig, CoherenceStrategy};
 pub use cluster::membership::{ClusterView, NodeInfo, NodeStatus};
-pub use cluster::coherence::{CacheCoherenceManager, CoherenceStrategy, CoherenceConfig};
+pub use cluster::{
+    ClusterConfig, ClusterMessage, ClusterPayload, MessageType, UDPMulticastCluster,
+};
+pub use incremental_cleaner::{
+    CacheMetricsProvider, CleanupConfig, CleanupResult, ExpiredKeyProvider, IncrementalCleaner,
+};
+pub use segmented_lru::{SegmentedLRU, SegmentedLRUStats};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CacheConfig {
