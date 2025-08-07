@@ -5,7 +5,7 @@
 replicaCount: 3
 
 image:
-  repository: gcr.io/awesomeapibrasil/gateway
+  repository: ghcr.io/awesomeapibrasil/gateway
   pullPolicy: IfNotPresent
   tag: ""
 
@@ -133,6 +133,40 @@ config:
     ttl: "300s"
     max_size: 104857600
     compression: true
+    
+    # Distributed Cache Configuration
+    distributed:
+      enabled: true
+      
+      # Segmented LRU Cache
+      segmented_lru:
+        max_size: 10000
+        segments: 16
+        cleanup_frequency: "5min"
+        
+      # Approximated LRU Cache  
+      approximated_lru:
+        max_size: 50000
+        sample_size: 10
+        eviction_batch_size: 5
+        
+      # UDP Multicast Clustering
+      cluster:
+        enabled: true
+        multicast_address: "239.255.0.1:7648"
+        node_timeout: "30s"
+        heartbeat_interval: "5s"
+        
+        # System Monitoring
+        monitoring:
+          load_threshold: 0.8
+          memory_threshold: 0.9
+          
+        # Cache Coherence
+        coherence:
+          strategy: "write_through"  # write_through, write_behind
+          conflict_resolution: "vector_clock"
+          max_vector_clock_size: 100
 
   database:
     enabled: false
