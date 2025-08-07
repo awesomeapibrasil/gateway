@@ -17,5 +17,7 @@ thiserror = { workspace = true }
 dashmap = { workspace = true }
 redis = { workspace = true }
 tracing = { workspace = true }
+rand = "0.8"
+uuid = { workspace = true }
 
 gateway-database = { path = "../gateway-database" }
